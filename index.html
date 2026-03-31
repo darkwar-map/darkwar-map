@@ -1,0 +1,5001 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>다크워 서바이벌 시즌맵 전황판</title>
+<style>
+  :root {
+    --bg: #08111f;
+    --panel: rgba(10, 18, 34, 0.88);
+    --panel-2: rgba(255,255,255,0.04);
+    --line: rgba(255,255,255,0.12);
+    --text: #e5eefc;
+    --muted: #9db0cb;
+    --occupied-fill: rgba(239, 68, 68, 0.48);
+    --occupied-stroke: rgba(248, 113, 113, 0.98);
+    --vacant-fill: rgba(148, 163, 184, 0.12);
+    --vacant-stroke: rgba(226, 232, 240, 0.58);
+    --gate: #f59e0b;
+    --entry: #22c55e;
+    --zone: #60a5fa;
+    --core: #f43f5e;
+    --shadow: 0 18px 50px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at top, #15284d 0%, rgba(21,40,77,0.25) 22%, transparent 45%),
+      linear-gradient(180deg, #050a14, #08111f 28%, #0b1220);
+    color: var(--text);
+    font-family: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif;
+  }
+  .app {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 16px;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 360px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+  .sidebar {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+  .title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .server-badge {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.05);
+    color: var(--text);
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+  .server-matchup {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+  .admin-status {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .server-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .server-chip {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .server-chip.active {
+    background: rgba(96,165,250,0.22);
+    border-color: rgba(147,197,253,0.45);
+  }
+
+  .section {
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel-2);
+  }
+  .section h2 {
+    margin: 0 0 10px;
+    font-size: 0.98rem;
+  }
+  .legend, .stats, .selected-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    white-space: nowrap;
+  }
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .dot.occupied { background: var(--occupied-fill); border-color: var(--occupied-stroke); }
+  .dot.vacant { background: var(--vacant-fill); border-color: var(--vacant-stroke); }
+  .dot.gate { background: rgba(245,158,11,0.9); border-color: #fbbf24; }
+  .dot.entry { background: rgba(34,197,94,0.9); border-color: #4ade80; }
+  .dot.zone { background: rgba(96,165,250,0.9); border-color: #93c5fd; }
+  .dot.core { background: rgba(244,63,94,0.95); border-color: #fb7185; }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  button, .file-label {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border-radius: 14px;
+    padding: 11px 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  button:hover, .file-label:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.22);
+  }
+  input[type=file] { display: none; }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .filter-btn {
+    font-size: 0.82rem;
+    padding: 9px 8px;
+    border-radius: 12px;
+  }
+  .filter-btn.active {
+    background: rgba(96,165,250,0.24);
+    border-color: rgba(147,197,253,0.45);
+  }
+
+  .selected-name {
+    font-size: 1.02rem;
+    font-weight: 800;
+  }
+  .muted {
+    color: var(--muted);
+  }
+  .small {
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 0.84rem;
+  }
+  .list-wrap {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: auto;
+    max-height: 330px;
+  }
+  .zone-list {
+    display: grid;
+  }
+  .zone-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .zone-item:hover { background: rgba(255,255,255,0.05); }
+  .zone-item.active { background: rgba(96,165,250,0.14); }
+  .zone-item:last-child { border-bottom: 0; }
+  .zone-meta {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .zone-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .zone-sub {
+    font-size: 0.79rem;
+    color: var(--muted);
+  }
+
+  
+  .editor-floating {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 320px;
+    background: rgba(15,23,42,0.95);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 14px;
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.38);
+  }
+  .editor-floating h3 {
+    margin: 0 0 8px;
+    font-size: 0.98rem;
+  }
+  .editor-floating .status {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+    font-size: 0.86rem;
+  }
+  .editor-floating .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .editor-floating button {
+    font-size: 0.82rem;
+    padding: 8px 10px;
+  }
+
+  .editor-help {
+    margin-top: 8px;
+  }
+  #editorLayer {
+    pointer-events: auto;
+  }
+  .editor-polyline {
+    fill: none;
+    stroke: #60a5fa;
+    stroke-width: 3;
+    stroke-dasharray: 8 6;
+  }
+  .editor-polygon {
+    fill: rgba(59,130,246,0.18);
+    stroke: #60a5fa;
+    stroke-width: 3;
+    stroke-dasharray: 8 6;
+  }
+  .editor-handle {
+    fill: #bfdbfe;
+    stroke: #1d4ed8;
+    stroke-width: 2;
+    cursor: grab;
+  }
+  .editor-index {
+    fill: #eff6ff;
+    font-size: 18px;
+    font-weight: 800;
+    paint-order: stroke;
+    stroke: rgba(0,0,0,0.7);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+
+
+  .quick-controls {
+    grid-template-columns: 1fr;
+  }
+  .group-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .admin-btn {
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 0.83rem;
+  }
+  .admin-btn.active {
+    background: rgba(244,63,94,0.2);
+    border-color: rgba(251,113,133,0.45);
+  }
+  .editor-hidden {
+    display: none;
+  }
+  .zone-group {
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .zone-group:last-child {
+    border-bottom: 0;
+  }
+  .zone-group summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 11px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-weight: 800;
+    background: rgba(255,255,255,0.03);
+  }
+  .zone-group summary::-webkit-details-marker {
+    display: none;
+  }
+  .zone-group summary:hover {
+    background: rgba(255,255,255,0.06);
+  }
+  .group-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .group-count {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .group-items {
+    display: grid;
+  }
+  .map-card {
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+  .toolbar {
+    position: relative;
+    display: block;
+    min-height: 32px;
+    padding: 0;
+    margin: 0;
+  }
+  .toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04);
+    font-size: 0.84rem;
+  }
+  .map-shell {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #000;
+    aspect-ratio: 2048 / 1703;
+    width: 100%;
+  }
+  .map-shell img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .map-shell,
+  svg.overlay,
+  #editorLayer {
+    touch-action: none;
+  }
+  svg.overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .zone-shape {
+    fill: var(--vacant-fill);
+    stroke: var(--vacant-stroke);
+    stroke-width: 3;
+    cursor: pointer;
+    transition: fill .15s ease, stroke .15s ease, opacity .15s ease;
+    vector-effect: non-scaling-stroke;
+    pointer-events: visiblePainted;
+  }
+  .zone-shape.gate { stroke: rgba(245,158,11,.95); stroke-width: 3.4; }
+  .zone-shape.entry { stroke: rgba(34,197,94,.95); stroke-width: 3.2; }
+  .zone-shape.zone { stroke: rgba(96,165,250,.72); }
+  .zone-shape.core { stroke: rgba(244,63,94,.98); stroke-width: 3.6; }
+  .zone-shape.occupied {
+    fill: var(--occupied-fill);
+    stroke: var(--occupied-stroke);
+  }
+  .zone-shape:hover,
+  .zone-shape.focused {
+    opacity: 1;
+  }
+  .zone-shape.dimmed { opacity: 0.15; }
+  .zone-label {
+    font-size: 20px;
+    fill: rgba(255,255,255,.95);
+    paint-order: stroke;
+    stroke: rgba(0,0,0,.58);
+    stroke-width: 6;
+    pointer-events: none;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-anchor: middle;
+  }
+  .zone-label.owned {
+    font-size: 28px;
+    font-weight: 900;
+    stroke-width: 8;
+  }
+  .zone-label.dimmed { opacity: 0.15; }
+  .zone-label.small { font-size: 16px; }
+  .map-tag {
+    position: absolute;
+    left: 16px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(4,10,22,0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    font-size: 0.84rem;
+    font-weight: 800;
+  }
+  .tag-top { top: 16px; }
+  .tag-bottom { bottom: 16px; }
+  .tooltip {
+    position: absolute;
+    min-width: 210px;
+    max-width: 280px;
+    pointer-events: none;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(4, 10, 22, 0.94);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+    opacity: 0;
+    transform: translate(12px, -12px);
+    transition: opacity .15s ease, transform .15s ease;
+    z-index: 20;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip-title {
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .tooltip-body {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .footer-note {
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    padding: 0 6px 6px;
+  }
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: 1fr; }
+    .list-wrap { max-height: 240px; }
+  }
+  @media (max-width: 720px) {
+    .app { padding: 10px; gap: 10px; }
+    .sidebar, .map-card { border-radius: 20px; }
+    .filter-grid { grid-template-columns: repeat(3, 1fr); }
+    .controls { grid-template-columns: 1fr; }
+  }
+
+  .button-row, .button-wrap, .owner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .toolbar {
+    justify-content: flex-end;
+  }
+  .toolbar-left { display:none; }
+  .toolbar-right {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin-left: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 4px 6px;
+    min-height: 0 !important;
+    height: auto !important;
+    background: rgba(4,10,22,0.68);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 10px;
+  }
+  .toolbar-right > * {
+    margin: 0;
+    line-height: 1;
+  }
+  .admin-btn {
+    padding: 5px 8px;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .section-note { margin-top: 8px; }
+  .owner-chip {
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 10px;
+    border-radius:999px;
+    font-size:0.85rem;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+  }
+  .owner-filter-btn, .level-filter-btn, .assign-owner-btn {
+    font-size: 0.82rem;
+    padding: 9px 10px;
+    border-radius: 12px;
+  }
+  .owner-filter-btn.active, .level-filter-btn.active, .assign-owner-btn.active {
+    background: rgba(96,165,250,0.24);
+    border-color: rgba(147,197,253,0.45);
+  }
+  .section-subtitle {
+    margin: 0 0 8px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .danger-note {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(248,113,113,0.35);
+    background: rgba(239,68,68,0.08);
+    border-radius: 12px;
+    color: #fecaca;
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+  .mini-form {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .mini-form .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mini-form input {
+    width: 100%;
+    appearance: none;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+  }
+  .mini-form label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+
+  /* v6 compact / cleanup / performance */
+  .subtitle,
+  .section-subtitle,
+  .footer-note {
+    display: none !important;
+  }
+  .app {
+    gap: 12px;
+  }
+  .sidebar {
+    padding: 14px;
+    gap: 10px;
+  }
+  .section {
+    padding: 12px;
+  }
+  .section h2 {
+    margin-bottom: 8px;
+  }
+  .map-card {
+    position: relative;
+    padding: 10px;
+    gap: 0;
+  }
+  .toolbar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 0;
+    margin: 0;
+    min-height: 0 !important;
+    height: auto !important;
+    width: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  .toolbar-left {
+    display: none !important;
+  }
+  .toolbar-right {
+    position: static;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 0;
+    min-height: 0 !important;
+    height: auto !important;
+    background: transparent;
+    border: 0;
+  }
+  .admin-btn {
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .button-row,
+  .button-wrap,
+  .owner-actions {
+    gap: 6px;
+  }
+  .section-note {
+    margin-top: 6px;
+  }
+  .panel,
+  .map-tag,
+  .tooltip,
+  .editor-floating {
+    backdrop-filter: none !important;
+  }
+  .zone-shape {
+    transition: fill .12s ease, stroke .12s ease, opacity .12s ease;
+  }
+  .zone-shape:hover,
+  .zone-shape.focused {
+    filter: none;
+  }
+  @media (max-width: 720px) {
+    .sidebar, .map-card {
+      border-radius: 18px;
+    }
+    .toolbar {
+      top: 8px;
+      right: 8px;
+      padding: 0;
+    }
+  }
+
+
+  /* v9 admin button fix */
+  .toolbar {
+    display: none !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+  .map-card {
+    padding-top: 14px !important;
+  }
+  .map-shell {
+    position: relative;
+  }
+  .map-admin-anchor {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+  .map-admin-anchor .admin-btn {
+    pointer-events: auto;
+    padding: 5px 8px;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+    border-radius: 10px;
+  }
+
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10020;
+  }
+  .modal-backdrop.hidden { display: none; }
+  .modal-card {
+    width: min(420px, calc(100vw - 32px));
+    background: rgba(10, 18, 34, 0.96);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .modal-card h3 { margin: 0 0 10px; font-size: 1rem; }
+  .modal-desc { margin: 0 0 12px; color: var(--muted); line-height: 1.5; white-space: pre-line; font-size: 0.88rem; }
+  .modal-form-row { display: grid; gap: 6px; margin-bottom: 12px; }
+  .modal-form-row input {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+  }
+
+
+.server-admin-list{display:flex;flex-direction:column;gap:8px;max-height:180px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px;background:rgba(255,255,255,.04)}
+.server-admin-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid transparent;cursor:pointer}
+.server-admin-item.active{border-color:rgba(93,211,255,.7);background:rgba(93,211,255,.12)}
+.server-admin-item small{display:block;color:var(--muted);margin-top:2px}
+.server-admin-empty{color:var(--muted);font-size:13px;padding:8px 4px}
+
+.scoreboard-wrap{display:grid;gap:10px;margin-bottom:8px}
+.scorebar-card{padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04)}
+.scorebar-head,.scorebar-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.scorebar-head strong{font-size:1rem}
+.scorebar-track{position:relative;height:18px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);margin:10px 0}
+.scorebar-order,.scorebar-unassigned,.scorebar-revenge{position:absolute;top:0;bottom:0}
+.scorebar-order{left:0;background:linear-gradient(90deg, rgba(59,130,246,.95), rgba(96,165,250,.95))}
+.scorebar-unassigned{background:linear-gradient(90deg, rgba(71,85,105,.95), rgba(148,163,184,.95))}
+.scorebar-revenge{right:0;background:linear-gradient(90deg, rgba(239,68,68,.95), rgba(248,113,113,.95))}
+.scorebar-centerline{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.4);transform:translateX(-50%)}
+.scorebar-labels{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.82rem;color:var(--muted)}
+.mobile-map-note{display:none;padding:16px;border:1px dashed rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.04);color:var(--muted);text-align:center;line-height:1.5}
+@media (max-width: 920px){ .map-shell{display:none !important;} .mobile-map-note{display:block;} }
+.score-side-badge{display:inline-flex;align-items:center;gap:6px;font-weight:800}
+.score-side-dot{width:10px;height:10px;border-radius:999px}
+.score-side-dot.order{background:#60a5fa}
+.score-side-dot.revenge{background:#f87171}
+.zone-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.zone-item-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.zone-change-btn{font-size:.76rem;padding:7px 9px;border-radius:10px}
+.owner-chip.clickable{cursor:pointer}
+.owner-select-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:320px;overflow:auto}
+.owner-select-btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;font:inherit;font-size:.84rem;font-weight:700}
+.owner-select-btn.active{background:rgba(96,165,250,.18);border-color:rgba(147,197,253,.45)}
+.owner-select-btn:hover{background:rgba(255,255,255,.1)}
+
+
+  .influence-overlay {
+    z-index: 1;
+    pointer-events: none;
+  }
+  .overlay,
+  #editorLayer {
+    z-index: 2;
+  }
+  #editorLayer {
+    z-index: 3;
+  }
+  .influence-cluster {
+    pointer-events: none;
+    stroke-width: 10;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    opacity: .95;
+    filter: drop-shadow(0 10px 26px rgba(0,0,0,.18));
+  }
+  .influence-cluster-fill {
+    opacity: .18;
+  }
+  .influence-cluster-stroke {
+    opacity: .62;
+    fill: none;
+  }
+  .influence-label {
+    font-size: 18px;
+    font-weight: 900;
+    text-anchor: middle;
+    letter-spacing: -0.02em;
+    paint-order: stroke;
+    stroke: rgba(0,0,0,.62);
+    stroke-width: 6;
+    pointer-events: none;
+    opacity: .92;
+  }
+  .ranking-wrap {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .ranking-card {
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 14px;
+    background: rgba(255,255,255,.04);
+  }
+  .ranking-title {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+    font-weight:800;
+  }
+  .ranking-list {
+    display:grid;
+    gap:8px;
+  }
+  .ranking-item {
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:10px;
+    align-items:center;
+  }
+  .ranking-rank {
+    width:24px;
+    text-align:center;
+    font-weight:900;
+    color:var(--muted);
+  }
+  .ranking-main {
+    min-width:0;
+    display:grid;
+    gap:4px;
+  }
+  .ranking-name {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight:800;
+    min-width:0;
+  }
+  .ranking-side {
+    font-size:.76rem;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .ranking-bar {
+    height:8px;
+    border-radius:999px;
+    background:rgba(255,255,255,.08);
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .ranking-bar > span {
+    display:block;
+    height:100%;
+    border-radius:999px;
+  }
+  .ranking-score {
+    font-weight:900;
+  }
+
+  .zone-shape.owned-glow {
+    stroke-width: 4.2;
+    filter:
+      drop-shadow(0 0 10px rgba(255,255,255,0.18))
+      drop-shadow(0 0 18px currentColor);
+  }
+  .zone-owner-tag {
+    font-size: 28px;
+    font-weight: 900;
+    text-anchor: middle;
+    letter-spacing: -0.01em;
+    paint-order: stroke;
+    stroke: rgba(0,0,0,.7);
+    stroke-width: 5;
+    pointer-events: none;
+    opacity: .96;
+  }
+  .zone-owner-tag.small {
+    font-size: 20px;
+    stroke-width: 4;
+  }
+
+
+  .influence-dot,
+  .territory-cluster-circle,
+  .owner-cluster-circle,
+  .influence-circle {
+    display: none !important;
+  }
+
+
+  .influence-dot,
+  .territory-cluster-circle,
+  .owner-cluster-circle,
+  .influence-circle,
+  .cluster-circle,
+  .owner-bubble {
+    display: none !important;
+  }
+  #influenceLayer circle,
+  #territoryOverlay circle,
+  #ownerOverlay circle,
+  svg.overlay .cluster-circle,
+  svg.overlay .owner-bubble {
+    display: none !important;
+  }
+
+
+  circle {
+    display: none !important;
+  }
+
+
+  #influenceLayer { display: none !important; }
+
+  /* Fix admin mode label size */
+  #adminStatusText, .admin-mode, .admin-badge {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+
+  #adminModeBtn {
+    font-size: 11px !important;
+    padding: 5px 8px !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+  }
+
+
+  .editor-panel-collapsed .status,
+  .editor-panel-collapsed .button-row,
+  .editor-panel-collapsed #superAdminTools {
+    display: none !important;
+  }
+  .editor-panel-collapsed {
+    width: 180px !important;
+  }
+
+  /* 페이지 탭 네비게이션 */
+  .nav-tabs {
+    display: flex;
+    gap: 6px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 4px;
+  }
+  .nav-tab {
+    flex: 1;
+    text-align: center;
+    text-decoration: none;
+    padding: 9px 0;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: var(--panel-2);
+    border: 1px solid transparent;
+    transition: background .15s, color .15s, border-color .15s;
+    cursor: pointer;
+  }
+  .nav-tab:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+  }
+  .nav-tab.active {
+    background: rgba(96,165,250,0.18);
+    border-color: rgba(96,165,250,0.45);
+    color: #93c5fd;
+  }
+  .btn-full { width: 100%; }
+
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel sidebar">
+    <div class="nav-tabs">
+      <a href="index.html" class="nav-tab active">⚔️ 전황판</a>
+      <a href="strategy.html" class="nav-tab">🗺️ 전략맵</a>
+    </div>
+    <div>
+      <h1 class="title">다크워 시즌맵 전황판</h1>
+      <div class="server-badge" id="currentServerBadge">현재 서버: #0000</div>
+      <div class="server-matchup" id="currentServerMatchup">#0000 (#0000, #0000 VS #0000, #0000)</div>
+      <div class="admin-status" id="adminStatusText">권한: 보기 모드</div>
+      <div class="button-row section-note">
+        <button id="changeCurrentAdminPasswordBtn" style="display:none;">비밀번호 변경</button>
+        <button id="addAllianceBtn">연맹 추가</button>
+      </div>
+      <div class="server-list" id="serverList"></div>
+    </div>
+
+    <section class="section">
+      <h2>영지 / 목록</h2>
+      <div class="button-row">
+        <button id="toggleAllTerritoriesBtn" class="btn-full">전체 영지 숨기기</button>
+      </div>
+    </section>
+
+    <input id="restoreFile" type="file" accept=".json,application/json" style="display:none;" />
+
+    <section class="section">
+      <h2>레벨 필터</h2>
+      <div class="button-wrap" id="levelFilterBar"></div>
+    </section>
+
+    <section class="section">
+      <h2>연맹 필터</h2>
+      <div class="button-wrap" id="ownerFilterBar"></div>
+    </section>
+
+    <section class="section">
+      <h2>현황 통계</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section class="section">
+      <h2>영지 목록</h2>
+      <div class="list-wrap">
+        <div class="zone-list" id="zoneList"></div>
+      </div>
+    </section>
+  </aside>
+
+  <main class="panel map-card">
+    <div class="toolbar"></div>
+
+    <div class="map-shell" id="mapShell">
+      <div class="map-admin-anchor">
+        <button id="adminModeBtn" class="admin-btn" type="button">관리자 모드</button>
+      </div>
+      <img id="mapImage" src="map.png" alt="다크워 시즌맵" />
+      <svg class="overlay influence-overlay" id="influenceLayer" viewBox="0 0 2048 1703" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg class="overlay" id="overlay" viewBox="0 0 2048 1703" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg class="overlay" id="editorLayer" viewBox="0 0 2048 1703" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="tooltip" id="tooltip">
+        <div class="tooltip-title" id="tooltipTitle"></div>
+        <div class="tooltip-body" id="tooltipBody"></div>
+      </div>
+    </div>
+    <div class="mobile-map-note">모바일에서는 맵을 숨기고 통계/목록만 표시해. PC나 태블릿 가로 화면에서 맵을 확인해줘.</div>
+  </main>
+</div>
+
+<div id="shiftYModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <h3>Y 위치 보정</h3>
+    <p class="modal-desc">좌상단 기준으로 전체 영지 좌표의 Y값을 한 번에 이동해.
+음수면 위로, 양수면 아래로 이동해.</p>
+    <div class="modal-form-row">
+      <label for="shiftYInput">기준 Y 이동값</label>
+      <input id="shiftYInput" type="number" step="1" value="0" />
+    </div>
+    <div class="button-row section-note">
+      <button id="applyShiftYBtn">전체 Y 보정 실행</button>
+      <button id="closeShiftYBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div id="serverGroupModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <h3>서버 구성</h3>
+    <p class="modal-desc">대표 서버 1개와 대진 서버 4개를 입력해. 다섯 칸 모두 #1234 형식으로 입력해. 서버 리스트에는 대표 서버만 표시돼.</p>
+    <div class="modal-form-row">
+      <label for="serverGroupCurrentInput">대표 서버</label>
+      <input id="serverGroupCurrentInput" type="text" placeholder="#1234" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverGroupAlly1Input">왼쪽 서버 1</label>
+      <input id="serverGroupAlly1Input" type="text" placeholder="#1234" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverGroupAlly2Input">왼쪽 서버 2</label>
+      <input id="serverGroupAlly2Input" type="text" placeholder="#1234" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverGroupEnemy1Input">오른쪽 서버 1</label>
+      <input id="serverGroupEnemy1Input" type="text" placeholder="#1234" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverGroupEnemy2Input">오른쪽 서버 2</label>
+      <input id="serverGroupEnemy2Input" type="text" placeholder="#1234" />
+    </div>
+    <div class="button-row section-note">
+      <button id="saveServerGroupBtn">서버 구성 저장</button>
+      <button id="closeServerGroupBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div id="serverAdminModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <h3>서버 관리자 설정</h3>
+    <p class="modal-desc">현재 선택된 대표 서버 기준으로 서버관리자 계정을 추가해. 이메일/비밀번호로 Auth 계정을 만들고, 서버 권한도 같이 등록해.</p>
+    <div class="modal-form-row">
+      <label for="serverAdminNameInput">관리자 이름</label>
+      <input id="serverAdminNameInput" type="text" placeholder="예: BOOM 운영자" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverAdminIdInput">관리자 이메일</label>
+      <input id="serverAdminIdInput" type="email" placeholder="예: admin9224@dw.com" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverAdminPinInput">초기 비밀번호</label>
+      <input id="serverAdminPinInput" type="password" placeholder="6자 이상 입력" />
+    </div>
+    <div class="modal-form-row">
+      <label>현재 등록된 서버관리자</label>
+      <div id="serverAdminList" class="server-admin-list"></div>
+    </div>
+    <div class="button-row section-note">
+      <button id="saveServerAdminBtn">서버관리자 추가</button>
+      <button id="deleteServerAdminBtn">선택 권한 삭제</button>
+      <button id="closeServerAdminBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div id="ownerChangeModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <h3>영지 점령 변경</h3>
+    <p class="modal-desc" id="ownerChangeDesc">영지를 선택해 점령 연맹을 바꿔줘.</p>
+    <div id="ownerChangeButtons" class="owner-select-grid"></div>
+    <div class="button-row section-note">
+      <button id="closeOwnerChangeBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="allianceSideBulkModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(560px, calc(100vw - 32px));">
+    <h3>기존 연맹 진영 일괄 지정</h3>
+    <p class="modal-desc">슈퍼관리자만 사용할 수 있어. 기존 등록된 연맹의 진영을 한 번에 질서/복수로 지정해 저장해.</p>
+    <div id="allianceSideBulkList" class="server-admin-list" style="max-height:320px;"></div>
+    <div class="button-row section-note">
+      <button id="saveAllianceSideBulkBtn">일괄 저장</button>
+      <button id="closeAllianceSideBulkBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="editor-floating editor-hidden" id="editorPanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><h3 style="margin:0;">좌표 편집</h3><button id="toggleEditorPanelBtn" type="button" style="padding:6px 10px;font-size:12px;border-radius:10px;">숨기기</button></div>
+  <div id="editorPanelBody">
+  <div class="status">
+    <div><strong id="editorModeLabel">편집 꺼짐</strong></div>
+    <div>현재 서버: <span id="editorCurrentServer" class="muted">#0000</span></div>
+    <div>대상: <span id="editorTargetName" class="muted">선택된 구역 없음</span></div>
+    <div>점 개수: <span id="editorPointCount">0</span></div>
+  </div>
+  <div class="button-row section-note">
+    <button id="changeServerBtn">서버 구성</button>
+    <button id="manageServerAdminBtn">서버관리자 설정</button>
+    <button id="bulkAllianceSideBtn">진영 일괄 지정</button>
+    <button id="deleteServerBtn">현재 서버 삭제</button>
+  </div>
+  <div id="superAdminTools">
+    <div class="controls">
+      <button id="toggleEditBtn">편집 시작</button>
+      <button id="savePolygonBtn">현재 저장</button>
+      <button id="undoPointBtn">마지막 점 삭제</button>
+      <button id="clearPointsBtn">점 전체 초기화</button>
+      <button id="copyZoneBtn">선택 JSON 복사</button>
+      <button id="exportZonePolygonsBtn">전체 JSON</button>
+    </div>
+    <div class="button-row section-note">
+      <button id="openRescaleBtn">좌표 보정</button>
+      <button id="backupBtn">JSON 백업</button>
+      <label class="file-label" for="restoreFile">JSON 복원</label>
+    </div>
+    <div class="button-row section-note">
+      <button id="resetOverridesBtn">좌표 초기화</button>
+      <button id="openShiftYBtn">Y 위치 보정</button>
+      <button id="changeSuperPasswordBtn">슈퍼 비밀번호 변경</button>
+    </div>
+    <div class="mini-form">
+      <label>기존 좌표 기준 가로
+        <input id="rescaleWidthInput" type="number" min="1" step="1" value="1920" />
+      </label>
+      <label>기존 좌표 기준 세로
+        <input id="rescaleHeightInput" type="number" min="1" step="1" value="1200" />
+      </label>
+      <div class="button-row">
+        <button id="runRescaleBtn">전체 좌표 보정 실행</button>
+      </div>
+    </div>
+    <div class="danger-note">⚠️ 좌표 보정은 현재 보이는 모든 영지 좌표를 한 번에 변환해. 보정 전에 JSON 백업을 먼저 받아두는 걸 권장해.</div>
+  </div>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
+function sanitizeServerGroups(map){
+  const out = {};
+  Object.keys(map || {}).forEach(k=>{
+    const safeKey = String(k).replace('#','');
+    out[safeKey] = map[k];
+  });
+  return out;
+}
+
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js">
+function sanitizeServerGroups(map){
+  const out = {};
+  Object.keys(map || {}).forEach(k=>{
+    const safeKey = String(k).replace('#','');
+    out[safeKey] = map[k];
+  });
+  return out;
+}
+
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js">
+function sanitizeServerGroups(map){
+  const out = {};
+  Object.keys(map || {}).forEach(k=>{
+    const safeKey = String(k).replace('#','');
+    out[safeKey] = map[k];
+  });
+  return out;
+}
+
+</script>
+<script>
+const ZONE_DEFS = [
+  {
+    "id": "north_gate_1",
+    "name": "상단 좌외곽 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "78,305 59,357 105,357"
+  },
+  {
+    "id": "north_gate_2",
+    "name": "상단 좌중앙 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "439,302 416,353 465,353"
+  },
+  {
+    "id": "north_gate_3",
+    "name": "상단 중앙 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "629,305 612,353 651,353"
+  },
+  {
+    "id": "north_gate_4",
+    "name": "상단 우중앙 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "1449,294 1430,353 1483,350"
+  },
+  {
+    "id": "north_gate_5",
+    "name": "상단 우외곽 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "1635,291 1614,351 1654,351"
+  },
+  {
+    "id": "north_gate_6",
+    "name": "상단 최우측 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "1978,306 1948,357 1987,357"
+  },
+  {
+    "id": "north_entry_1",
+    "name": "상단 좌측 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "508,383 490,437 537,433"
+  },
+  {
+    "id": "north_entry_2",
+    "name": "상단 중앙 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "1231,437 1216,490 1263,494"
+  },
+  {
+    "id": "north_entry_3",
+    "name": "상단 우측 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "1535,535 1511,583 1559,589"
+  },
+  {
+    "id": "north_entry_4",
+    "name": "상단 좌하 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "597,550 570,603 615,609"
+  },
+  {
+    "id": "north_entry_5",
+    "name": "중앙 북문 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "1236,625 1205,681 1255,680"
+  },
+  {
+    "id": "north_entry_6",
+    "name": "우측 외곽 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "1790,708 1769,767 1817,765"
+  },
+  {
+    "id": "north_entry_7",
+    "name": "좌측 외곽 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "264,731 234,783 284,782"
+  },
+  {
+    "id": "mid_entry_1",
+    "name": "중앙 좌측 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "827,824 805,872 859,883"
+  },
+  {
+    "id": "mid_entry_2",
+    "name": "중앙 우측 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "1474,895 1458,955 1487,958"
+  },
+  {
+    "id": "mid_entry_3",
+    "name": "중앙 좌하 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "520,933 501,985 543,988"
+  },
+  {
+    "id": "mid_entry_4",
+    "name": "중앙 우하 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "1547,1053 1523,1106 1576,1107"
+  },
+  {
+    "id": "south_entry_1",
+    "name": "하단 좌중앙 진입로",
+    "type": "entry",
+    "shape": "polygon",
+    "points": "830,1100 799,1139 870,1139"
+  },
+  {
+    "id": "south_gate_1",
+    "name": "하단 최좌측 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "70,1149 56,1207 105,1199"
+  },
+  {
+    "id": "south_gate_2",
+    "name": "하단 좌중앙 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "456,1146 427,1193 489,1198"
+  },
+  {
+    "id": "south_gate_3",
+    "name": "하단 중앙 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "605,1154 576,1195 620,1199"
+  },
+  {
+    "id": "south_gate_4",
+    "name": "하단 우중앙 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "1430,1146 1406,1198 1460,1202"
+  },
+  {
+    "id": "south_gate_5",
+    "name": "하단 우외곽 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "1663,1140 1642,1193 1684,1199"
+  },
+  {
+    "id": "south_gate_6",
+    "name": "하단 최우측 관문",
+    "type": "gate",
+    "shape": "polygon",
+    "points": "1948,1151 1930,1196 1972,1199"
+  },
+  {
+    "id": "outer_north_1",
+    "name": "1구역 상단 1",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "11,-67 192,-69 194,8 139,64 147,134 103,165 17,166"
+  },
+  {
+    "id": "outer_north_2",
+    "name": "1구역 상단 2",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "190,-66 513,-67 507,-19 407,-27 364,15 361,118 302,159 276,137 148,131 142,61 189,9"
+  },
+  {
+    "id": "outer_north_3",
+    "name": "1구역 상단 3",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "511,-66 715,-66 719,61 681,62 620,109 496,104 454,68 365,70 365,14 401,-27 513,-28"
+  },
+  {
+    "id": "outer_north_4",
+    "name": "1구역 상단 4",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "716,-69 886,-69 933,-31 937,35 900,74 949,119 895,163 821,168 781,134 648,133 620,100 681,59 718,53"
+  },
+  {
+    "id": "outer_north_5",
+    "name": "1구역 상단 5",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "891,-72 1177,-75 1175,3 1138,49 1135,82 1085,116 945,121 897,79 931,35 934,-27"
+  },
+  {
+    "id": "outer_north_6",
+    "name": "1구역 상단 6",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1172,-70 1404,-69 1412,-49 1445,-21 1446,56 1480,82 1460,104 1458,181 1376,187 1330,226 1169,235 1083,162 1082,116 1133,86 1126,50 1183,11"
+  },
+  {
+    "id": "outer_north_7",
+    "name": "1구역 상단 7",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1413,-69 1707,-72 1713,-27 1626,-16 1633,9 1583,55 1520,59 1486,83 1448,58 1448,-18 1413,-45"
+  },
+  {
+    "id": "outer_north_8",
+    "name": "1구역 상단 8",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1710,-67 2034,-75 2032,137 1922,139 1865,92 1728,85 1733,-4 1708,-27"
+  },
+  {
+    "id": "north_line_1",
+    "name": "2구역 상단 1",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "13,166 91,162 139,130 266,134 302,154 305,330 17,324"
+  },
+  {
+    "id": "north_line_2",
+    "name": "2구역 상단 2",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "305,159 359,116 361,70 453,73 495,107 489,246 528,274 523,327 311,323"
+  },
+  {
+    "id": "north_line_3",
+    "name": "2구역 상단 3",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "495,110 611,106 638,125 773,136 809,160 769,217 764,256 722,302 716,332 525,330 525,273 487,249"
+  },
+  {
+    "id": "north_line_4",
+    "name": "2구역 상단 4",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "817,172 889,171 904,259 981,271 987,320 719,326 719,300 757,270 760,211"
+  },
+  {
+    "id": "north_line_5",
+    "name": "2구역 상단 5",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "898,168 948,119 1097,116 1091,157 1168,240 1318,231 1377,279 1376,326 992,324 992,267 907,258"
+  },
+  {
+    "id": "north_line_6",
+    "name": "2구역 상단 6",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1321,232 1371,186 1455,184 1502,229 1702,241 1704,277 1638,330 1373,327 1376,284"
+  },
+  {
+    "id": "north_line_7",
+    "name": "2구역 상단 7",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1464,180 1464,103 1519,61 1576,64 1624,11 1626,-18 1708,-16 1733,-4 1733,85 1851,89 1913,140 1873,180 1871,240 1826,244 1784,282 1699,282 1701,229 1504,232"
+  },
+  {
+    "id": "north_line_8",
+    "name": "2구역 상단 8",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1921,139 2025,146 2028,320 1603,332 1602,320 1644,321 1698,290 1782,285 1829,244 1861,244 1865,172"
+  },
+  {
+    "id": "west_3_1",
+    "name": "3구역 서측 A",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "26,348 315,347 320,460 25,460"
+  },
+  {
+    "id": "west_3_2",
+    "name": "3구역 서측 B",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "320,350 507,345 510,549 323,555"
+  },
+  {
+    "id": "west_3_3",
+    "name": "3구역 서측 C",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "25,478 309,473 311,628 26,619"
+  },
+  {
+    "id": "west_3_4",
+    "name": "3구역 서측 D",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "318,568 501,559 511,764 328,758"
+  },
+  {
+    "id": "west_3_5",
+    "name": "3구역 서측 E",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "23,633 315,631 309,758 35,767"
+  },
+  {
+    "id": "west_3_6",
+    "name": "3구역 서측 F",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "26,770 210,771 216,961 22,960"
+  },
+  {
+    "id": "west_3_7",
+    "name": "3구역 서측 G",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "221,768 510,771 519,890 219,899"
+  },
+  {
+    "id": "west_3_8",
+    "name": "3구역 서측 H",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "219,907 517,898 510,1062 221,1055"
+  },
+  {
+    "id": "west_3_9",
+    "name": "3구역 서측 I",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "19,973 212,973 224,1178 28,1186"
+  },
+  {
+    "id": "west_3_10",
+    "name": "3구역 서측 J",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "228,1067 510,1067 516,1175 224,1181"
+  },
+  {
+    "id": "green_4_1",
+    "name": "4구역 중앙 A",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "519,347 725,347 737,585 526,585"
+  },
+  {
+    "id": "yellow_5_1",
+    "name": "5구역 상부",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "749,347 1038,345 1038,469 743,460"
+  },
+  {
+    "id": "green_4_2",
+    "name": "4구역 중앙 B",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "739,475 1034,472 1040,589 745,582"
+  },
+  {
+    "id": "green_4_3",
+    "name": "4구역 중앙 C",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1041,342 1234,345 1233,583 1046,582"
+  },
+  {
+    "id": "green_4_4",
+    "name": "4구역 중앙 D",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1239,342 1537,344 1534,517 1240,509"
+  },
+  {
+    "id": "green_4_5",
+    "name": "4구역 중앙 E",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1040,1059 1312,1056 1306,1183 1028,1180"
+  },
+  {
+    "id": "yellow_5_2",
+    "name": "5구역 우측",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1236,520 1383,520 1386,746 1230,741"
+  },
+  {
+    "id": "green_4_6",
+    "name": "4구역 중앙 F",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1386,523 1522,520 1537,744 1389,746"
+  },
+  {
+    "id": "green_4_7",
+    "name": "4구역 중앙 G",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "525,594 829,595 826,743 519,755"
+  },
+  {
+    "id": "orange_6_1",
+    "name": "6구역 좌상",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "837,594 1007,594 1040,630 883,755 835,716"
+  },
+  {
+    "id": "center_7",
+    "name": "7구역 핵심",
+    "type": "core",
+    "shape": "polygon",
+    "points": "901,768 1061,648 1154,738 1005,862"
+  },
+  {
+    "id": "orange_6_2",
+    "name": "6구역 우상",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1022,601 1233,776 1228,601"
+  },
+  {
+    "id": "green_4_8",
+    "name": "4구역 중앙 H",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1230,758 1538,753 1537,939 1230,933"
+  },
+  {
+    "id": "green_4_9",
+    "name": "4구역 중앙 I",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "520,774 663,770 662,1005 516,1008"
+  },
+  {
+    "id": "yellow_5_3",
+    "name": "5구역 좌하",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "671,767 814,771 817,1018 668,1005"
+  },
+  {
+    "id": "orange_6_3",
+    "name": "6구역 좌하",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "830,726 837,931 1077,930"
+  },
+  {
+    "id": "orange_6_4",
+    "name": "6구역 우하",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1017,872 1163,746 1224,779 1225,933 1077,936"
+  },
+  {
+    "id": "green_4_10",
+    "name": "4구역 중앙 J",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1314,943 1537,943 1537,1173 1317,1181"
+  },
+  {
+    "id": "yellow_5_4",
+    "name": "5구역 하부",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1040,946 1314,943 1311,1047 1035,1045"
+  },
+  {
+    "id": "green_4_11",
+    "name": "4구역 중앙 K",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "526,1015 817,1011 823,1180 526,1180"
+  },
+  {
+    "id": "green_4_12",
+    "name": "4구역 중앙 L",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "834,945 1041,940 1040,1181 826,1180"
+  },
+  {
+    "id": "east_3_1",
+    "name": "3구역 동측 A",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1541,342 1839,342 1833,458 1538,455"
+  },
+  {
+    "id": "east_3_2",
+    "name": "3구역 동측 B",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1842,341 2022,336 2014,547 1850,544"
+  },
+  {
+    "id": "east_3_3",
+    "name": "3구역 동측 C",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1535,460 1833,457 1832,621 1541,616"
+  },
+  {
+    "id": "east_3_4",
+    "name": "3구역 동측 D",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1838,558 2008,549 2019,755 1841,750"
+  },
+  {
+    "id": "east_3_5",
+    "name": "3구역 동측 E",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1529,633 1827,630 1833,743 1540,747"
+  },
+  {
+    "id": "east_3_6",
+    "name": "3구역 동측 F",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1543,753 1723,759 1736,952 1549,955"
+  },
+  {
+    "id": "east_3_7",
+    "name": "3구역 동측 G",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1726,767 2022,758 2010,886 1740,875"
+  },
+  {
+    "id": "east_3_8",
+    "name": "3구역 동측 H",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1737,898 2010,892 2013,1052 1731,1041"
+  },
+  {
+    "id": "east_3_9",
+    "name": "3구역 동측 I",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1540,966 1728,963 1728,1173 1543,1176"
+  },
+  {
+    "id": "east_3_10",
+    "name": "3구역 동측 J",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1733,1055 2010,1059 2020,1187 1733,1178"
+  },
+  {
+    "id": "south_line_1",
+    "name": "2구역 하단 1",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "19,1187 224,1187 215,1240 162,1297 168,1359 97,1414 4,1420"
+  },
+  {
+    "id": "south_line_2",
+    "name": "2구역 하단 2",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "225,1190 377,1190 376,1311 433,1359 437,1434 382,1482 264,1484 222,1514 142,1514 144,1469 82,1416 162,1363 162,1291 221,1250"
+  },
+  {
+    "id": "south_line_6",
+    "name": "2구역 하단 3",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "377,1195 581,1192 576,1235 626,1288 630,1321 638,1372 529,1378 510,1359 430,1363 382,1315"
+  },
+  {
+    "id": "south_line_3",
+    "name": "2구역 하단 4",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "581,1193 909,1193 904,1276 850,1324 812,1280 743,1277 692,1323 635,1323 629,1285 579,1249"
+  },
+  {
+    "id": "south_line_4",
+    "name": "2구역 하단 5",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "909,1195 1440,1193 1434,1226 1380,1241 1389,1292 1342,1324 1230,1329 1199,1348 1133,1351 1049,1282 898,1280"
+  },
+  {
+    "id": "south_line_5",
+    "name": "2구역 하단 6",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1436,1189 1823,1193 1818,1292 1749,1300 1720,1330 1636,1329 1591,1294 1382,1292 1382,1241 1433,1238"
+  },
+  {
+    "id": "south_line_7",
+    "name": "2구역 하단 7",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1380,1297 1594,1294 1647,1332 1713,1332 1734,1359 1861,1368 1883,1395 1803,1472 1693,1472 1645,1503 1550,1503 1501,1463 1424,1475 1382,1451 1383,1398 1335,1363 1338,1324"
+  },
+  {
+    "id": "south_line_8",
+    "name": "2구역 하단 8",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1714,1336 1742,1306 1815,1306 1824,1183 2025,1186 2032,1363 1981,1374 1957,1398 1882,1396 1868,1374 1736,1374"
+  },
+  {
+    "id": "outer_south_1",
+    "name": "1구역 하단 1",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "4,1431 85,1423 132,1461 142,1514 222,1505 261,1482 312,1490 309,1527 359,1574 361,1597 5,1592"
+  },
+  {
+    "id": "outer_south_2",
+    "name": "1구역 하단 2",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "317,1491 376,1485 434,1445 433,1365 511,1363 540,1384 623,1381 629,1411 666,1445 618,1491 591,1491 593,1532 642,1577 641,1595 367,1588 367,1574 318,1541"
+  },
+  {
+    "id": "outer_south_3",
+    "name": "1구역 하단 3",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "665,1451 921,1455 936,1476 992,1481 1106,1574 1108,1591 629,1594 636,1576 588,1538 602,1497 626,1496"
+  },
+  {
+    "id": "outer_south_4",
+    "name": "1구역 하단 4",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "638,1324 689,1329 728,1276 812,1279 840,1315 907,1277 1056,1285 1120,1351 1080,1384 1055,1386 1058,1443 995,1482 948,1484 928,1455 668,1446 638,1405"
+  },
+  {
+    "id": "outer_south_5",
+    "name": "1구역 하단 5",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1120,1354 1186,1354 1225,1324 1341,1327 1344,1357 1382,1396 1379,1454 1353,1479 1093,1482 1050,1448 1055,1386 1074,1384"
+  },
+  {
+    "id": "outer_south_6",
+    "name": "1구역 하단 6",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1004,1481 1055,1448 1083,1475 1352,1476 1376,1455 1419,1476 1504,1466 1541,1500 1583,1509 1582,1586 1108,1598 1103,1577"
+  },
+  {
+    "id": "outer_south_7",
+    "name": "1구역 하단 7",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1585,1505 1650,1505 1689,1476 1797,1476 1817,1496 1830,1524 1879,1562 1876,1591 1582,1586"
+  },
+  {
+    "id": "outer_south_8",
+    "name": "1구역 하단 8",
+    "type": "zone",
+    "shape": "polygon",
+    "points": "1803,1470 1894,1398 1943,1396 1976,1374 2034,1365 2031,1591 1877,1591 1876,1559 1832,1538 1829,1496"
+  }
+];
+
+const BASELINE_EDIT_OVERRIDES = {
+  "north_gate_1": {
+    "points": "78,395 59,447 105,447",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_gate_2": {
+    "points": "439,392 416,443 465,443",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_gate_3": {
+    "points": "629,395 612,443 651,443",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_gate_4": {
+    "points": "1449,384 1430,443 1483,440",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_gate_5": {
+    "points": "1635,381 1614,441 1654,441",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_gate_6": {
+    "points": "1978,396 1948,447 1987,447",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_1": {
+    "points": "508,473 490,527 537,523",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_2": {
+    "points": "1231,527 1216,580 1263,584",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_3": {
+    "points": "1535,625 1511,673 1559,679",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_4": {
+    "points": "597,640 570,693 615,699",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_5": {
+    "points": "1236,715 1205,771 1255,770",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_6": {
+    "points": "1790,798 1769,857 1817,855",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_entry_7": {
+    "points": "264,821 234,873 284,872",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "mid_entry_1": {
+    "points": "827,914 805,962 859,973",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "mid_entry_2": {
+    "points": "1474,985 1458,1045 1487,1048",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "mid_entry_3": {
+    "points": "520,1023 501,1075 543,1078",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "mid_entry_4": {
+    "points": "1547,1143 1523,1196 1576,1197",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_entry_1": {
+    "points": "830,1190 799,1229 870,1229",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_gate_1": {
+    "points": "70,1239 56,1297 105,1289",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_gate_2": {
+    "points": "456,1236 427,1283 489,1288",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_gate_3": {
+    "points": "605,1244 576,1285 620,1289",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_gate_4": {
+    "points": "1430,1236 1406,1288 1460,1292",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_gate_5": {
+    "points": "1663,1230 1642,1283 1684,1289",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "south_gate_6": {
+    "points": "1948,1241 1930,1286 1972,1289",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_1": {
+    "points": "11,23 192,21 194,98 139,154 147,224 103,255 17,256",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_2": {
+    "points": "190,24 513,23 507,71 407,63 364,105 361,208 302,249 276,227 148,221 142,151 189,99",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_3": {
+    "points": "511,24 715,24 719,151 681,152 620,199 496,194 454,158 365,160 365,104 401,63 513,62",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_4": {
+    "points": "716,21 886,21 933,59 937,125 900,164 949,209 895,253 821,258 781,224 648,223 620,190 681,149 718,143",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_5": {
+    "points": "891,18 1177,15 1175,93 1138,139 1135,172 1085,206 945,211 897,169 931,125 934,63",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_6": {
+    "points": "1172,20 1404,21 1412,41 1445,69 1446,146 1480,172 1460,194 1458,271 1376,277 1330,316 1169,325 1083,252 1082,206 1133,176 1126,140 1183,101",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_7": {
+    "points": "1413,21 1707,18 1713,63 1626,74 1633,99 1583,145 1520,149 1486,173 1448,148 1448,72 1413,45",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "outer_north_8": {
+    "points": "1710,23 2034,15 2032,227 1922,229 1865,182 1728,175 1733,86 1708,63",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_1": {
+    "points": "13,256 91,252 139,220 266,224 302,244 305,420 17,414",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_2": {
+    "points": "305,249 359,206 361,160 453,163 495,197 489,336 528,364 523,417 311,413",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_3": {
+    "points": "495,200 611,196 638,215 773,226 809,250 769,307 764,346 722,392 716,422 525,420 525,363 487,339",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_4": {
+    "points": "817,262 889,261 904,349 981,361 987,410 719,416 719,390 757,360 760,301",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_5": {
+    "points": "898,258 948,209 1097,206 1091,247 1168,330 1318,321 1377,369 1376,416 992,414 992,357 907,348",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_6": {
+    "points": "1321,322 1371,276 1455,274 1502,319 1702,331 1704,367 1638,420 1373,417 1376,374",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_7": {
+    "points": "1464,270 1464,193 1519,151 1576,154 1624,101 1626,72 1708,74 1733,86 1733,175 1851,179 1913,230 1873,270 1871,330 1826,334 1784,372 1699,372 1701,319 1504,322",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "north_line_8": {
+    "points": "1921,229 2025,236 2028,410 1603,422 1602,410 1644,411 1698,380 1782,375 1829,334 1861,334 1865,262",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_1": {
+    "points": "26,438 315,437 320,550 25,550",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_2": {
+    "points": "320,440 507,435 510,639 323,645",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_3": {
+    "points": "25,568 309,563 311,718 26,709",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_4": {
+    "points": "318,658 501,649 511,854 328,848",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_5": {
+    "points": "23,723 315,721 309,848 35,857",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_6": {
+    "points": "26,860 210,861 216,1051 22,1050",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_7": {
+    "points": "221,858 510,861 519,980 219,989",
+    "updated_at": "2026-03-26T01:49:28.764Z",
+    "shifted_y_by": -10
+  },
+  "west_3_8": {
+    "points": "219,997 517,988 510,1152 221,1145",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "west_3_9": {
+    "points": "19,1063 212,1063 224,1268 28,1276",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "west_3_10": {
+    "points": "228,1157 510,1157 516,1265 224,1271",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_1": {
+    "points": "519,437 725,437 737,675 526,675",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "yellow_5_1": {
+    "points": "749,437 1038,435 1038,559 743,550",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_2": {
+    "points": "739,565 1034,562 1040,679 745,672",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_3": {
+    "points": "1041,432 1234,435 1233,673 1046,672",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_4": {
+    "points": "1239,432 1537,434 1534,607 1240,599",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_5": {
+    "points": "1040,1149 1312,1146 1306,1273 1028,1270",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "yellow_5_2": {
+    "points": "1236,610 1383,610 1386,836 1230,831",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_6": {
+    "points": "1386,613 1522,610 1537,834 1389,836",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_7": {
+    "points": "525,684 829,685 826,833 519,845",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "orange_6_1": {
+    "points": "837,684 1007,684 1040,720 883,845 835,806",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "center_7": {
+    "points": "901,858 1061,738 1154,828 1005,952",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "orange_6_2": {
+    "points": "1022,691 1233,866 1228,691",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_8": {
+    "points": "1230,848 1538,843 1537,1029 1230,1023",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_9": {
+    "points": "520,864 663,860 662,1095 516,1098",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "yellow_5_3": {
+    "points": "671,857 814,861 817,1108 668,1095",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "orange_6_3": {
+    "points": "830,816 837,1021 1077,1020",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "orange_6_4": {
+    "points": "1017,962 1163,836 1224,869 1225,1023 1077,1026",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_10": {
+    "points": "1314,1033 1537,1033 1537,1263 1317,1271",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "yellow_5_4": {
+    "points": "1040,1036 1314,1033 1311,1137 1035,1135",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_11": {
+    "points": "526,1105 817,1101 823,1270 526,1270",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "green_4_12": {
+    "points": "834,1035 1041,1030 1040,1271 826,1270",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_1": {
+    "points": "1541,432 1839,432 1833,548 1538,545",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_2": {
+    "points": "1842,431 2022,426 2014,637 1850,634",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_3": {
+    "points": "1535,550 1833,547 1832,711 1541,706",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_4": {
+    "points": "1838,648 2008,639 2019,845 1841,840",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_5": {
+    "points": "1529,723 1827,720 1833,833 1540,837",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_6": {
+    "points": "1543,843 1723,849 1736,1042 1549,1045",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_7": {
+    "points": "1726,857 2022,848 2010,976 1740,965",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_8": {
+    "points": "1737,988 2010,982 2013,1142 1731,1131",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_9": {
+    "points": "1540,1056 1728,1053 1728,1263 1543,1266",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "east_3_10": {
+    "points": "1733,1145 2010,1149 2020,1277 1733,1268",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_1": {
+    "points": "19,1277 224,1277 215,1330 162,1387 168,1449 97,1504 4,1510",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_2": {
+    "points": "225,1280 377,1280 376,1401 433,1449 437,1524 382,1572 264,1574 222,1604 142,1604 144,1559 82,1506 162,1453 162,1381 221,1340",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_6": {
+    "points": "377,1285 581,1282 576,1325 626,1378 630,1411 638,1462 529,1468 510,1449 430,1453 382,1405",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_3": {
+    "points": "581,1283 909,1283 904,1366 850,1414 812,1370 743,1367 692,1413 635,1413 629,1375 579,1339",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_4": {
+    "points": "909,1285 1440,1283 1434,1316 1380,1331 1389,1382 1342,1414 1230,1419 1199,1438 1133,1441 1049,1372 898,1370",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_5": {
+    "points": "1436,1279 1823,1283 1818,1382 1749,1390 1720,1420 1636,1419 1591,1384 1382,1382 1382,1331 1433,1328",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_7": {
+    "points": "1380,1387 1594,1384 1647,1422 1713,1422 1734,1449 1861,1458 1883,1485 1803,1562 1693,1562 1645,1593 1550,1593 1501,1553 1424,1565 1382,1541 1383,1488 1335,1453 1338,1414",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "south_line_8": {
+    "points": "1714,1426 1742,1396 1815,1396 1824,1273 2025,1276 2032,1453 1981,1464 1957,1488 1882,1486 1868,1464 1736,1464",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_1": {
+    "points": "4,1521 85,1513 132,1551 142,1604 222,1595 261,1572 312,1580 309,1617 359,1664 361,1687 5,1682",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_2": {
+    "points": "317,1581 376,1575 434,1535 433,1455 511,1453 540,1474 623,1471 629,1501 666,1535 618,1581 591,1581 593,1622 642,1667 641,1685 367,1678 367,1664 318,1631",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_3": {
+    "points": "665,1541 921,1545 936,1566 992,1571 1106,1664 1108,1681 629,1684 636,1666 588,1628 602,1587 626,1586",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_4": {
+    "points": "638,1414 689,1419 728,1366 812,1369 840,1405 907,1367 1056,1375 1120,1441 1080,1474 1055,1476 1058,1533 995,1572 948,1574 928,1545 668,1536 638,1495",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_5": {
+    "points": "1120,1444 1186,1444 1225,1414 1341,1417 1344,1447 1382,1486 1379,1544 1353,1569 1093,1572 1050,1538 1055,1476 1074,1474",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_6": {
+    "points": "1004,1571 1055,1538 1083,1565 1352,1566 1376,1545 1419,1566 1504,1556 1541,1590 1583,1599 1582,1676 1108,1688 1103,1667",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_7": {
+    "points": "1585,1595 1650,1595 1689,1566 1797,1566 1817,1586 1830,1614 1879,1652 1876,1681 1582,1676",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  },
+  "outer_south_8": {
+    "points": "1803,1560 1894,1488 1943,1486 1976,1464 2034,1455 2031,1681 1877,1681 1876,1649 1832,1628 1829,1586",
+    "updated_at": "2026-03-26T01:49:28.765Z",
+    "shifted_y_by": -10
+  }
+};
+const STORAGE_KEY = "darkwar-season-battleboard-refined-v12-state";
+const EDIT_STORAGE_KEY = "darkwar-season-battleboard-editor-overrides-v12-local";
+const ALLIANCE_STORAGE_KEY = "darkwar-season-battleboard-alliances-v12";
+const ALLIANCE_SIDE_STORAGE_KEY = "darkwar-season-battleboard-alliance-sides-v15";
+const CURRENT_SERVER_STORAGE_KEY = "darkwar-season-battleboard-current-server-v13";
+const SERVER_GROUP_STORAGE_KEY = "darkwar-season-battleboard-server-group-v13";
+const SERVER_GROUPS_STORAGE_KEY = "darkwar-season-battleboard-server-groups-v15";
+const ADMIN_SESSION_STORAGE_KEY = "darkwar-season-battleboard-admin-session-v22";
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA9472RJuz3weFqkEQfFQT_6dUW-UKhEG0",
+  authDomain: "darkwar-map.firebaseapp.com",
+  databaseURL: "https://darkwar-map-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "darkwar-map",
+  storageBucket: "darkwar-map.firebasestorage.app",
+  messagingSenderId: "812037405481",
+  appId: "1:812037405481:web:d86d1f8af864ca07251538"
+};
+const FIREBASE_ENABLED = Boolean(FIREBASE_CONFIG.apiKey);
+const FIREBASE_PATH = "boards/season_map_v13";
+const FIREBASE_META_PATH = "boards/season_map_v13_meta";
+const FIREBASE_SERVER_ADMINS_PATH = `${FIREBASE_META_PATH}/serverAdmins`;
+const FIREBASE_SUPERADMIN_PATH = `${FIREBASE_META_PATH}/superAdmin`;
+const FIREBASE_SERVER_GROUPS_PATH = `${FIREBASE_META_PATH}/serverGroups`;
+const OWNER_COLORS = [
+  "#ef4444", "#3b82f6", "#f59e0b", "#22c55e", "#a855f7",
+  "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16"
+];
+const MAP_WIDTH = 2048;
+const MAP_HEIGHT = 1703;
+let lastTouchAddAt = 0;
+let currentServer = loadCurrentServer();
+let serverGroupsMap = loadServerGroupsMap();
+let currentServerGroup = loadServerGroup(currentServer);
+
+const zoneMap = Object.fromEntries(ZONE_DEFS.map(z => [z.id, { ...z }]));
+let editOverrides = loadEditOverrides();
+applyEditOverrides();
+let alliances = loadAlliances();
+let allianceSides = loadAllianceSides();
+let state = loadState();
+let selectedZoneId = null;
+let activeLevelFilter = "all";
+let activeOwnerFilter = "all";
+let allTerritoriesVisible = true;
+let adminMode = false;
+let adminRole = "viewer";
+let serverAdminSession = null;
+let editMode = false;
+let editPoints = [];
+let draggingPointIndex = null;
+let db = null;
+let auth = null;
+let selectedServerAdminUid = null;
+let currentAuthUser = null;
+let boardRef = null;
+let isApplyingRemote = false;
+let serverGroupsSyncAvailable = true;
+let authRoleWatchRef = null;
+
+const influenceLayer = document.getElementById("influenceLayer");
+const overlay = document.getElementById("overlay");
+
+const mapImage = document.getElementById("mapImage");
+
+function syncMapShellSize() {
+  if (!mapShell || !mapImage) return;
+  const ratio = (mapImage.naturalWidth && mapImage.naturalHeight)
+    ? `${mapImage.naturalWidth} / ${mapImage.naturalHeight}`
+    : '2048 / 1703';
+  mapShell.style.aspectRatio = ratio;
+}
+
+mapImage?.addEventListener("load", syncMapShellSize);
+window.addEventListener("resize", syncMapShellSize);
+const shapeElements = new Map();
+const labelElements = new Map();
+const ownerTagElements = new Map();
+const influenceLabelElements = [];
+let overlayInitialized = false;
+
+const editorLayer = document.getElementById("editorLayer");
+const mapShell = document.getElementById("mapShell");
+const tooltip = document.getElementById("tooltip");
+const tooltipTitle = document.getElementById("tooltipTitle");
+const tooltipBody = document.getElementById("tooltipBody");
+const zoneList = document.getElementById("zoneList");
+const stats = document.getElementById("stats");
+const levelFilterBar = document.getElementById("levelFilterBar");
+const ownerFilterBar = document.getElementById("ownerFilterBar");
+const toggleAllTerritoriesBtn = document.getElementById("toggleAllTerritoriesBtn");
+const addAllianceBtn = document.getElementById("addAllianceBtn");
+const openRescaleBtn = document.getElementById("openRescaleBtn");
+const backupBtn = document.getElementById("backupBtn");
+const restoreFile = document.getElementById("restoreFile");
+const resetOverridesBtn = document.getElementById("resetOverridesBtn");
+const adminModeBtn = document.getElementById("adminModeBtn");
+const currentServerBadge = document.getElementById("currentServerBadge");
+const currentServerMatchup = document.getElementById("currentServerMatchup");
+const serverListEl = document.getElementById("serverList");
+const serverGroupModal = document.getElementById("serverGroupModal");
+const serverGroupCurrentInput = document.getElementById("serverGroupCurrentInput");
+const serverGroupAlly1Input = document.getElementById("serverGroupAlly1Input");
+const serverGroupAlly2Input = document.getElementById("serverGroupAlly2Input");
+const serverGroupEnemy1Input = document.getElementById("serverGroupEnemy1Input");
+const serverGroupEnemy2Input = document.getElementById("serverGroupEnemy2Input");
+const saveServerGroupBtn = document.getElementById("saveServerGroupBtn");
+const closeServerGroupBtn = document.getElementById("closeServerGroupBtn");
+const serverAdminModal = document.getElementById("serverAdminModal");
+const serverAdminNameInput = document.getElementById("serverAdminNameInput");
+const serverAdminIdInput = document.getElementById("serverAdminIdInput");
+const serverAdminPinInput = document.getElementById("serverAdminPinInput");
+const serverAdminList = document.getElementById("serverAdminList");
+const saveServerAdminBtn = document.getElementById("saveServerAdminBtn");
+const deleteServerAdminBtn = document.getElementById("deleteServerAdminBtn");
+const closeServerAdminBtn = document.getElementById("closeServerAdminBtn");
+const adminStatusText = document.getElementById("adminStatusText");
+const changeCurrentAdminPasswordBtn = document.getElementById("changeCurrentAdminPasswordBtn");
+const editorCurrentServer = document.getElementById("editorCurrentServer");
+const changeServerBtn = document.getElementById("changeServerBtn");
+const manageServerAdminBtn = document.getElementById("manageServerAdminBtn");
+const deleteServerBtn = document.getElementById("deleteServerBtn");
+const removeServerAdminBtn = document.getElementById("removeServerAdminBtn");
+const openShiftYBtn = document.getElementById("openShiftYBtn");
+const shiftYModal = document.getElementById("shiftYModal");
+const shiftYInput = document.getElementById("shiftYInput");
+const applyShiftYBtn = document.getElementById("applyShiftYBtn");
+const closeShiftYBtn = document.getElementById("closeShiftYBtn");
+const editorPanel = document.getElementById("editorPanel");
+const toggleEditBtn = document.getElementById("toggleEditBtn");
+const savePolygonBtn = document.getElementById("savePolygonBtn");
+const undoPointBtn = document.getElementById("undoPointBtn");
+const clearPointsBtn = document.getElementById("clearPointsBtn");
+const copyZoneBtn = document.getElementById("copyZoneBtn");
+const exportZonePolygonsBtn = document.getElementById("exportZonePolygonsBtn");
+const rescaleWidthInput = document.getElementById("rescaleWidthInput");
+const rescaleHeightInput = document.getElementById("rescaleHeightInput");
+const runRescaleBtn = document.getElementById("runRescaleBtn");
+const editorModeLabel = document.getElementById("editorModeLabel");
+const editorTargetName = document.getElementById("editorTargetName");
+const editorPointCount = document.getElementById("editorPointCount");
+const selectedOwnerActions = document.getElementById("selectedOwnerActions");
+const ownerChangeModal = document.getElementById("ownerChangeModal");
+const ownerChangeDesc = document.getElementById("ownerChangeDesc");
+const ownerChangeButtons = document.getElementById("ownerChangeButtons");
+const closeOwnerChangeBtn = document.getElementById("closeOwnerChangeBtn");
+
+const allianceSideBulkModal = document.getElementById("allianceSideBulkModal");
+const allianceSideBulkList = document.getElementById("allianceSideBulkList");
+const bulkAllianceSideBtn = document.getElementById("bulkAllianceSideBtn");
+const saveAllianceSideBulkBtn = document.getElementById("saveAllianceSideBulkBtn");
+const closeAllianceSideBulkBtn = document.getElementById("closeAllianceSideBulkBtn");
+const toggleEditorPanelBtn = document.getElementById("toggleEditorPanelBtn");
+let editorPanelCollapsed = false;
+
+
+
+function nowString() {
+  return new Date().toLocaleString("ko-KR", { hour12: false });
+}
+
+const LEVEL_POWER = { 1: 20, 2: 40, 3: 60, 4: 120, 5: 240, 6: 400, 7: 1200 };
+const ZONE_POWER_TABLE = {
+  north_gate_1: 60,  north_gate_2: 60,  north_gate_3: 400, north_gate_4: 400, north_gate_5: 60,  north_gate_6: 60,
+  south_gate_1: 60,  south_gate_2: 60,  south_gate_3: 400, south_gate_4: 400, south_gate_5: 60,  south_gate_6: 60,
+  north_entry_1: 120, north_entry_2: 120, north_entry_3: 120, north_entry_4: 240, north_entry_5: 400, north_entry_6: 120, north_entry_7: 120,
+  mid_entry_1: 400,  mid_entry_2: 240,  mid_entry_3: 120,  mid_entry_4: 120,
+  south_entry_1: 120,
+};
+function getZonePower(zone) {
+  if (zone.id in ZONE_POWER_TABLE) return ZONE_POWER_TABLE[zone.id];
+  if (zone.type === "core") return 1200;
+  const matched = zone.name.match(/^(\d+)구역/);
+  if (matched) return LEVEL_POWER[Number(matched[1])] || 0;
+  return 0;
+}
+
+function deriveGroupKey(zone) {
+  if (zone.type === "gate") return "gate";
+  if (zone.type === "entry") return "entry";
+  if (zone.type === "core") return "core";
+  const matched = zone.name.match(/^(\d+)구역/);
+  if (matched) return `level-${matched[1]}`;
+  return "etc";
+}
+
+function groupLabelFromKey(key) {
+  if (key === "gate") return "관문";
+  if (key === "entry") return "진입로";
+  if (key === "core") return "핵심";
+  if (key.startsWith("level-")) return `${key.replace("level-", "")}레벨`;
+  return "기타";
+}
+
+function groupSortValue(key) {
+  if (key === "gate") return 1;
+  if (key === "entry") return 2;
+  if (key.startsWith("level-")) return 10 + Number(key.replace("level-", ""));
+  if (key === "core") return 99;
+  return 98;
+}
+
+function getLevelFilterOptions() {
+  const keys = [...new Set(ZONE_DEFS.map(deriveGroupKey))].sort((a, b) => groupSortValue(a) - groupSortValue(b));
+  return ["all", ...keys.filter(k => k !== "etc")];
+}
+
+function normalizeAllianceName(name) {
+  return String(name || "").trim();
+}
+
+function normalizeServerId(value) {
+  const input = String(value || "").trim();
+  const matched = input.match(/^#?(\d{4})$/);
+  return matched ? `#${matched[1]}` : null;
+}
+
+function normalizeServerList(values) {
+  return [...new Set((Array.isArray(values) ? values : []).map(normalizeServerId).filter(Boolean))];
+}
+
+function defaultServerGroup(serverId = "#0000") {
+  return {
+    current: normalizeServerId(serverId) || "#0000",
+    allies: [],
+    enemies: []
+  };
+}
+
+function normalizeServerGroupData(data, fallbackServer = currentServer) {
+  const normalized = {
+    current: normalizeServerId(data?.current) || normalizeServerId(fallbackServer) || "#0000",
+    allies: normalizeServerList(data?.allies).slice(0, 2),
+    enemies: normalizeServerList(data?.enemies).slice(0, 2)
+  };
+  normalized.allies = normalized.allies.filter(v => v !== normalized.current);
+  normalized.enemies = normalized.enemies.filter(v => v !== normalized.current && !normalized.allies.includes(v));
+  return normalized;
+}
+
+function clearLegacyServerGroupLocalCache() {
+  try {
+    localStorage.removeItem(CURRENT_SERVER_STORAGE_KEY);
+    localStorage.removeItem(SERVER_GROUP_STORAGE_KEY);
+    localStorage.removeItem(SERVER_GROUPS_STORAGE_KEY);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function loadServerGroupsMap() {
+  return { "#0000": defaultServerGroup("#0000") };
+}
+
+function saveServerGroupsMapLocal() {
+  clearLegacyServerGroupLocalCache();
+}
+
+function loadServerGroup(serverId = currentServer) {
+  const normalizedServer = normalizeServerId(serverId) || currentServer || "#0000";
+  const existing = serverGroupsMap?.[normalizedServer];
+  if (existing) return normalizeServerGroupData(existing, normalizedServer);
+  return defaultServerGroup(normalizedServer);
+}
+
+function getServerList() {
+  const list = Object.keys(serverGroupsMap || {}).map(normalizeServerId).filter(Boolean).sort();
+  return list.some((id) => id !== "#0000") ? list.filter((id) => id !== "#0000") : list;
+}
+function loadCurrentServer() {
+  return "#0000";
+}
+
+function saveCurrentServer() {
+  clearLegacyServerGroupLocalCache();
+}
+
+function getScopedStorageKey(baseKey) {
+  return `${baseKey}:${currentServer}`;
+}
+
+function getFirebaseServerKey() {
+  return currentServer.replace("#", "");
+}
+
+
+function toFirebaseServerGroupKey(serverId) {
+  const normalized = normalizeServerId(serverId);
+  return normalized ? normalized.replace("#", "") : null;
+}
+
+function sanitizeServerGroupsForFirebase(source) {
+  const sanitized = {};
+  Object.entries(source || {}).forEach(([serverId, value]) => {
+    const firebaseKey = toFirebaseServerGroupKey(serverId);
+    if (!firebaseKey) return;
+    const normalized = normalizeServerGroupData(value, normalizeServerId(serverId) || `#${firebaseKey}`);
+    sanitized[firebaseKey] = {
+      current: firebaseKey,
+      allies: (normalized.allies || []).map(id => id.replace("#", "")),
+      enemies: (normalized.enemies || []).map(id => id.replace("#", ""))
+    };
+  });
+  return sanitized;
+}
+
+function hasRealServerGroups(source) {
+  return Object.keys(source || {}).some((key) => normalizeServerId(key) && normalizeServerId(key) !== "#0000");
+}
+
+function updateServerLabels() {
+  if (currentServerBadge) currentServerBadge.textContent = `현재 서버: ${currentServer}`;
+  const allies = currentServerGroup?.allies || [];
+  const enemies = currentServerGroup?.enemies || [];
+  const allyText = allies.length ? allies.join(", ") : "-";
+  const enemyText = enemies.length ? enemies.join(", ") : "-";
+  if (currentServerMatchup) currentServerMatchup.textContent = `${currentServer} (${allyText} VS ${enemyText})`;
+  if (editorCurrentServer) editorCurrentServer.textContent = currentServer;
+  renderServerList();
+}
+
+function getCurrentServerAdminKey() {
+  return currentServer.replace("#", "");
+}
+
+function isSuperAdmin() {
+  return adminRole === "super";
+}
+
+function isServerAdminForCurrentServer() {
+  return adminRole === "server" && !!serverAdminSession && serverAdminSession.serverId === currentServer;
+}
+
+function canManageCurrentServer() {
+  return isSuperAdmin() || isServerAdminForCurrentServer();
+}
+
+function canEditCoordinates() {
+  return isSuperAdmin();
+}
+
+function getAdminStatusLabel() {
+  if (isSuperAdmin()) return "권한: 슈퍼 관리자";
+  if (isServerAdminForCurrentServer()) return `권한: 서버 관리자 (${serverAdminSession.name || serverAdminSession.adminId || currentServer})`;
+  return "권한: 보기 모드";
+}
+
+function updateAdminStatusUI() {
+  if (adminStatusText) adminStatusText.textContent = getAdminStatusLabel();
+  if (manageServerAdminBtn) manageServerAdminBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
+  if (bulkAllianceSideBtn) bulkAllianceSideBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
+  if (removeServerAdminBtn) removeServerAdminBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
+  if (changeServerBtn) changeServerBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
+  if (deleteServerBtn) deleteServerBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
+  if (changeSuperPasswordBtn) changeSuperPasswordBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
+  if (changeCurrentAdminPasswordBtn) changeCurrentAdminPasswordBtn.style.display = (isSuperAdmin() || isServerAdminForCurrentServer()) ? "inline-flex" : "none";
+  if (addAllianceBtn) addAllianceBtn.style.display = canManageCurrentServer() ? "inline-flex" : "none";
+  const superAdminTools = document.getElementById("superAdminTools");
+  if (superAdminTools) superAdminTools.style.display = isSuperAdmin() ? "block" : "none";
+}
+
+
+function renderServerList() {
+  if (!serverListEl) return;
+  const rawServers = getServerList();
+  const hasRegisteredServer = rawServers.some(serverId => serverId !== "#0000");
+  const servers = hasRegisteredServer ? rawServers.filter(serverId => serverId !== "#0000") : rawServers;
+  serverListEl.innerHTML = "";
+  servers.forEach(serverId => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `server-chip${serverId === currentServer ? " active" : ""}`;
+    btn.textContent = serverId;
+    btn.addEventListener("click", () => switchServer(serverId));
+    serverListEl.appendChild(btn);
+  });
+}
+
+function loadAlliances() {
+  try {
+    const raw = localStorage.getItem(getScopedStorageKey(ALLIANCE_STORAGE_KEY));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return [...new Set((Array.isArray(parsed) ? parsed : []).map(normalizeAllianceName).filter(Boolean))];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+function saveAlliances() {
+  localStorage.setItem(getScopedStorageKey(ALLIANCE_STORAGE_KEY), JSON.stringify(alliances));
+  pushBoardToFirebase();
+}
+
+function loadAllianceSides() {
+  try {
+    const raw = localStorage.getItem(getScopedStorageKey(ALLIANCE_SIDE_STORAGE_KEY));
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (err) {
+    console.error(err);
+    return {};
+  }
+}
+
+
+
+function encodeAllianceKey(name) {
+  return encodeURIComponent(String(name || "").trim());
+}
+
+function decodeAllianceKey(key) {
+  try {
+    return decodeURIComponent(String(key || ""));
+  } catch (err) {
+    return String(key || "");
+  }
+}
+
+function encodeAllianceSidesMap(map) {
+  const out = {};
+  Object.entries(map || {}).forEach(([name, side]) => {
+    const normalizedName = normalizeAllianceName(name);
+    const normalizedSide = normalizeAllianceSide(side);
+    if (!normalizedName || !normalizedSide) return;
+    out[encodeAllianceKey(normalizedName)] = normalizedSide;
+  });
+  return out;
+}
+
+function decodeAllianceSidesMap(map) {
+  const out = {};
+  Object.entries(map || {}).forEach(([key, side]) => {
+    const name = normalizeAllianceName(decodeAllianceKey(key));
+    const normalizedSide = normalizeAllianceSide(side);
+    if (!name || !normalizedSide) return;
+    out[name] = normalizedSide;
+  });
+  return out;
+}
+
+function normalizeAllianceSide(value) {
+  return value === "order" || value === "revenge" ? value : "";
+}
+
+function updateEditorPanelCollapseUI() {
+  if (!editorPanel) return;
+  editorPanel.classList.toggle("editor-panel-collapsed", !!editorPanelCollapsed);
+  if (toggleEditorPanelBtn) toggleEditorPanelBtn.textContent = editorPanelCollapsed ? "보이기" : "숨기기";
+}
+
+function openAllianceSideBulkModal() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 진영 일괄 지정을 할 수 있어.");
+    return;
+  }
+  renderAllianceSideBulkList();
+  if (allianceSideBulkModal) allianceSideBulkModal.classList.remove("hidden");
+}
+
+function closeAllianceSideBulkModal() {
+  allianceSideBulkModal?.classList.add("hidden");
+}
+
+function renderAllianceSideBulkList() {
+  if (!allianceSideBulkList) return;
+  if (!alliances.length) {
+    allianceSideBulkList.innerHTML = '<div class="server-admin-empty">등록된 연맹이 아직 없어.</div>';
+    return;
+  }
+  allianceSideBulkList.innerHTML = alliances.map((name, idx) => {
+    const current = normalizeAllianceSide(allianceSides?.[name]);
+    return `
+      <div class="server-admin-item" style="cursor:default; align-items:center;">
+        <span style="min-width:120px;"><strong>${escapeHtml(name)}</strong></span>
+        <span style="display:inline-flex; gap:8px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end;">
+          <label class="badge" style="cursor:pointer;">
+            <input type="radio" name="bulk-side-${idx}" value="order" ${current === "order" ? "checked" : ""}>
+            질서
+          </label>
+          <label class="badge" style="cursor:pointer;">
+            <input type="radio" name="bulk-side-${idx}" value="revenge" ${current === "revenge" ? "checked" : ""}>
+            복수
+          </label>
+          <label class="badge" style="cursor:pointer;">
+            <input type="radio" name="bulk-side-${idx}" value="" ${!current ? "checked" : ""}>
+            미지정
+          </label>
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveAllianceSideBulk() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 진영 일괄 지정을 저장할 수 있어.");
+    return;
+  }
+  const next = { ...(allianceSides || {}) };
+  alliances.forEach((name, idx) => {
+    const checked = document.querySelector(`input[name="bulk-side-${idx}"]:checked`);
+    const side = normalizeAllianceSide(checked?.value || "");
+    if (side) next[name] = side;
+    else delete next[name];
+  });
+  allianceSides = next;
+  localStorage.setItem(getScopedStorageKey(ALLIANCE_SIDE_STORAGE_KEY), JSON.stringify(allianceSides));
+  try {
+    if (db && FIREBASE_ENABLED && !isApplyingRemote) {
+      await db.ref(`${FIREBASE_PATH}/${getFirebaseServerKey()}/allianceSides`).set(encodeAllianceSidesMap(allianceSides));
+    }
+    saveAllianceSides();
+    closeAllianceSideBulkModal();
+    renderAll();
+    alert("기존 연맹 진영 지정을 저장했어.");
+  } catch (err) {
+    console.error(err);
+    alert(`진영 저장이 실패했어.
+${err?.message || "알 수 없는 오류"}`);
+  }
+}
+
+
+function saveAllianceSides() {
+  localStorage.setItem(getScopedStorageKey(ALLIANCE_SIDE_STORAGE_KEY), JSON.stringify(allianceSides));
+  pushBoardToFirebase();
+  if (db && FIREBASE_ENABLED && !isApplyingRemote) {
+    db.ref(`${FIREBASE_PATH}/${getFirebaseServerKey()}/allianceSides`).set(encodeAllianceSidesMap(allianceSides)).catch(console.error);
+  }
+}
+
+function getAllianceSide(owner) {
+  const side = String(allianceSides?.[owner] || "").trim();
+  return side === "order" || side === "revenge" ? side : null;
+}
+
+function getAllianceSideLabel(owner) {
+  const side = getAllianceSide(owner);
+  if (side === "order") return "질서";
+  if (side === "revenge") return "복수";
+  return null;
+}
+
+function getScoreSummary() {
+  let order = 0;
+  let revenge = 0;
+  let unassigned = 0;
+  Object.values(zoneMap).forEach((zone) => {
+    const owner = state[zone.id]?.owner;
+    if (!owner) return;
+    const side = getAllianceSide(owner);
+    const power = getZonePower(zone);
+    if (side === "order") order += power;
+    else if (side === "revenge") revenge += power;
+    else unassigned += power;
+  });
+  return { order, revenge, unassigned };
+}
+
+function getScoreBarSummary() {
+  const { order, revenge, unassigned } = getScoreSummary();
+  const total = order + revenge + unassigned;
+  const orderPercent = total ? (order / total) * 100 : 0;
+  const unassignedPercent = total ? (unassigned / total) * 100 : 0;
+  const revengePercent = total ? (revenge / total) * 100 : 0;
+  return { order, revenge, unassigned, total, orderPercent, unassignedPercent, revengePercent };
+}
+
+function getAllianceRankings() {
+  const totals = new Map();
+  Object.values(zoneMap).forEach((zone) => {
+    const owner = state[zone.id]?.owner;
+    if (!owner) return;
+    totals.set(owner, (totals.get(owner) || 0) + getZonePower(zone));
+  });
+  return [...totals.entries()]
+    .map(([name, score]) => ({ name, score, side: getAllianceSide(name), color: ownerColor(name) || '#94a3b8' }))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ko'));
+}
+
+function getZonePolygonPoints(zone) {
+  if (!zone || zone.shape !== 'polygon' || !zone.points) return [];
+  return pointStringToArray(zone.points);
+}
+
+function getZoneBounds(zone) {
+  const pts = getZonePolygonPoints(zone);
+  if (!pts.length) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  pts.forEach(({ x, y }) => {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  });
+  return { minX, minY, maxX, maxY };
+}
+
+function boundsClose(a, b, padding = 48) {
+  if (!a || !b) return false;
+  return !(
+    a.maxX + padding < b.minX ||
+    b.maxX + padding < a.minX ||
+    a.maxY + padding < b.minY ||
+    b.maxY + padding < a.minY
+  );
+}
+
+function distanceBetweenCenters(zoneA, zoneB) {
+  const [ax, ay] = getCenter(zoneA);
+  const [bx, by] = getCenter(zoneB);
+  return Math.hypot(ax - bx, ay - by);
+}
+
+function territoriesAreConnected(zoneA, zoneB) {
+  if (!zoneA || !zoneB) return false;
+  const boundsA = getZoneBounds(zoneA);
+  const boundsB = getZoneBounds(zoneB);
+  if (boundsClose(boundsA, boundsB, 42)) return true;
+  return distanceBetweenCenters(zoneA, zoneB) <= 250;
+}
+
+function convexHull(points) {
+  const pts = [...points]
+    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
+    .map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))
+    .sort((a, b) => a.x - b.x || a.y - b.y);
+  if (pts.length <= 1) return pts;
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper = [];
+  for (const p of pts.slice().reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+function expandHull(points, padding = 26) {
+  if (!points.length) return [];
+  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+  return points.map((p) => {
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    return {
+      x: Math.max(0, Math.min(MAP_WIDTH, p.x + (dx / len) * padding)),
+      y: Math.max(0, Math.min(MAP_HEIGHT, p.y + (dy / len) * padding))
+    };
+  });
+}
+
+function buildSmoothHullPath(points) {
+  if (!points.length) return '';
+  if (points.length === 1) {
+    const p = points[0];
+    return `M ${p.x - 24} ${p.y} a 24 24 0 1 0 48 0 a 24 24 0 1 0 -48 0`;
+  }
+  if (points.length === 2) {
+    const [a, b] = points;
+    return `M ${a.x} ${a.y} Q ${(a.x + b.x) / 2} ${(a.y + b.y) / 2 - 24} ${b.x} ${b.y} Q ${(a.x + b.x) / 2} ${(a.y + b.y) / 2 + 24} ${a.x} ${a.y} Z`;
+  }
+  let d = '';
+  points.forEach((point, index) => {
+    const next = points[(index + 1) % points.length];
+    const midX = (point.x + next.x) / 2;
+    const midY = (point.y + next.y) / 2;
+    if (index === 0) d += `M ${midX} ${midY}`;
+    d += ` Q ${next.x} ${next.y} ${(next.x + points[(index + 2) % points.length].x) / 2} ${(next.y + points[(index + 2) % points.length].y) / 2}`;
+  });
+  return `${d} Z`;
+}
+
+function getAllianceInfluenceClusters() {
+  const occupiedByAlliance = new Map();
+  Object.values(zoneMap).forEach((zone) => {
+    const owner = state[zone.id]?.owner;
+    if (!owner || !isVisibleZone(zone)) return;
+    if (!occupiedByAlliance.has(owner)) occupiedByAlliance.set(owner, []);
+    occupiedByAlliance.get(owner).push(zone);
+  });
+  const clusters = [];
+  occupiedByAlliance.forEach((zones, owner) => {
+    const visited = new Set();
+    zones.forEach((zone, index) => {
+      if (visited.has(zone.id)) return;
+      const queue = [zone];
+      const cluster = [];
+      visited.add(zone.id);
+      while (queue.length) {
+        const current = queue.shift();
+        cluster.push(current);
+        zones.forEach((candidate) => {
+          if (visited.has(candidate.id)) return;
+          if (territoriesAreConnected(current, candidate)) {
+            visited.add(candidate.id);
+            queue.push(candidate);
+          }
+        });
+      }
+      if (cluster.length >= 2) {
+        clusters.push({ owner, zones: cluster });
+      }
+    });
+  });
+  return clusters;
+}
+
+
+function loadEditOverrides() {
+  try {
+    const base = JSON.parse(JSON.stringify(BASELINE_EDIT_OVERRIDES || {}));
+    const raw = localStorage.getItem(getScopedStorageKey(EDIT_STORAGE_KEY));
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (parsed && typeof parsed === "object") {
+      Object.assign(base, parsed);
+    }
+    return base;
+  } catch (err) {
+    console.error(err);
+    return JSON.parse(JSON.stringify(BASELINE_EDIT_OVERRIDES || {}));
+  }
+}
+
+function saveEditOverrides() {
+  localStorage.setItem(getScopedStorageKey(EDIT_STORAGE_KEY), JSON.stringify(editOverrides));
+}
+
+function resetCoordinateOverrides() {
+  editOverrides = JSON.parse(JSON.stringify(BASELINE_EDIT_OVERRIDES || {}));
+  localStorage.setItem(getScopedStorageKey(EDIT_STORAGE_KEY), JSON.stringify(editOverrides));
+
+  zoneMap = Object.fromEntries(ZONE_DEFS.map(zone => [zone.id, JSON.parse(JSON.stringify(zone))]));
+  applyEditOverrides();
+  applyStateToZoneMap();
+  selectedZoneId = null;
+  editMode = false;
+  editPoints = [];
+  draggingPointIndex = null;
+
+  renderAll();
+  updateSelectionInfo();
+  updateEditorUI();
+}
+
+function applyEditOverrides() {
+  for (const zone of Object.values(zoneMap)) {
+    const base = ZONE_DEFS.find(z => z.id === zone.id);
+    if (base) {
+      zone.shape = base.shape;
+      if (base.points) zone.points = base.points;
+    }
+  }
+  for (const [zoneId, override] of Object.entries(editOverrides)) {
+    if (zoneMap[zoneId] && override?.points) {
+      zoneMap[zoneId].shape = "polygon";
+      zoneMap[zoneId].points = override.points;
+    }
+  }
+}
+
+function defaultStateFor(zone) {
+  return {
+    name: zone.name,
+    type: zone.type,
+    status: "vacant",
+    owner: null,
+    updated_at: null
+  };
+}
+
+function normalizeEntry(zone, entry) {
+  const owner = normalizeAllianceName(entry?.owner) || null;
+  return {
+    name: zone.name,
+    type: zone.type,
+    status: owner ? "occupied" : "vacant",
+    owner,
+    updated_at: entry?.updated_at || null
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(getScopedStorageKey(STORAGE_KEY));
+    const parsed = raw ? JSON.parse(raw) : {};
+    const out = {};
+    for (const zone of ZONE_DEFS) {
+      out[zone.id] = normalizeEntry(zone, parsed[zone.id]);
+    }
+    return out;
+  } catch (err) {
+    console.error(err);
+    return Object.fromEntries(ZONE_DEFS.map(zone => [zone.id, defaultStateFor(zone)]));
+  }
+}
+
+function saveState() {
+  localStorage.setItem(getScopedStorageKey(STORAGE_KEY), JSON.stringify(state));
+  pushBoardToFirebase();
+}
+
+function pointStringToArray(pointString) {
+  if (!pointString) return [];
+  return pointString.trim().split(/\s+/).map(token => {
+    const [x, y] = token.split(",").map(Number);
+    return { x, y };
+  }).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+}
+
+function pointArrayToString(points) {
+  return points.map(p => `${Math.round(p.x)},${Math.round(p.y)}`).join(" ");
+}
+
+function getClientXY(event) {
+  if (event.touches && event.touches.length > 0) {
+    return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }
+  if (event.changedTouches && event.changedTouches.length > 0) {
+    return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+  }
+  return { x: event.clientX, y: event.clientY };
+}
+
+function getSvgPointFromEvent(event) {
+  const { x, y } = getClientXY(event);
+  const pt = editorLayer.createSVGPoint();
+  pt.x = x;
+  pt.y = y;
+  const ctm = editorLayer.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const transformed = pt.matrixTransform(ctm.inverse());
+  return {
+    x: Math.max(0, Math.min(MAP_WIDTH, transformed.x)),
+    y: Math.max(0, Math.min(MAP_HEIGHT, transformed.y))
+  };
+}
+
+function getCenter(zone) {
+  if (zone.shape === "rect") return [zone.x + zone.w / 2, zone.y + zone.h / 2];
+  if (zone.shape === "ellipse") return [zone.cx, zone.cy];
+  if (zone.shape === "polygon") {
+    const nums = zone.points.trim().split(/[ ,]+/).map(Number);
+    let sx = 0, sy = 0, count = 0;
+    for (let i = 0; i < nums.length; i += 2) {
+      sx += nums[i];
+      sy += nums[i + 1];
+      count++;
+    }
+    return [sx / count, sy / count];
+  }
+  return [0, 0];
+}
+
+function typeText(type) {
+  return type === "gate" ? "관문" : type === "entry" ? "진입로" : type === "core" ? "핵심 영지" : "일반 영지";
+}
+
+function ownerText(owner) {
+  return owner || "미점령";
+}
+
+function statusText(entry) {
+  return entry.owner ? "점령" : "미점령";
+}
+
+function ownerIndex(owner) {
+  return alliances.indexOf(owner);
+}
+
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace("#", "");
+  const bigint = parseInt(clean, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function ownerColor(owner) {
+  if (!owner) return null;
+  const idx = ownerIndex(owner);
+  return OWNER_COLORS[(idx >= 0 ? idx : 0) % OWNER_COLORS.length];
+}
+
+function dotHtml(owner) {
+  const color = ownerColor(owner);
+  if (!color) return '<span class="dot vacant"></span>';
+  return `<span class="dot" style="background:${hexToRgba(color, 0.9)}; border-color:${color};"></span>`;
+}
+
+function persistLocally() {
+  localStorage.setItem(getScopedStorageKey(STORAGE_KEY), JSON.stringify(state));
+  localStorage.setItem(getScopedStorageKey(EDIT_STORAGE_KEY), JSON.stringify(editOverrides));
+  localStorage.setItem(getScopedStorageKey(ALLIANCE_STORAGE_KEY), JSON.stringify(alliances));
+  localStorage.setItem(getScopedStorageKey(ALLIANCE_SIDE_STORAGE_KEY), JSON.stringify(allianceSides));
+}
+
+function pushBoardToFirebase() {
+  if (!db || !FIREBASE_ENABLED || isApplyingRemote) return;
+  db.ref(`${FIREBASE_PATH}/${getFirebaseServerKey()}`).set({ alliances, allianceSides: encodeAllianceSidesMap(allianceSides), state }).catch(console.error);
+}
+
+function pushServerGroupToFirebase() {
+  if (!db || !FIREBASE_ENABLED || isApplyingRemote || !serverGroupsSyncAvailable) return;
+  const payload = sanitizeServerGroupsForFirebase(serverGroupsMap);
+  if (!Object.keys(payload).length) return;
+  db.ref(FIREBASE_SERVER_GROUPS_PATH).set(payload).catch((err) => {
+    console.error(err);
+    if (String(err?.code || "").includes("PERMISSION_DENIED")) {
+      serverGroupsSyncAvailable = false;
+      console.warn("serverGroups Firebase sync disabled: permission denied");
+    }
+  });
+}
+
+function connectServerGroupRef() {
+  if (!db || !serverGroupsSyncAvailable) return;
+  const ref = db.ref(FIREBASE_SERVER_GROUPS_PATH);
+  ref.on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data || typeof data !== "object") {
+      if (hasRealServerGroups(serverGroupsMap)) pushServerGroupToFirebase();
+      return;
+    }
+    isApplyingRemote = true;
+    const next = {};
+    Object.entries(data).forEach(([key, value]) => {
+      const normalizedKey = normalizeServerId(key);
+      if (!normalizedKey) return;
+      next[normalizedKey] = normalizeServerGroupData(value, normalizedKey);
+    });
+    if (!Object.keys(next).length) {
+      const base = defaultServerGroup(currentServer);
+      next[base.current] = base;
+    }
+    serverGroupsMap = next;
+    if (!serverGroupsMap[currentServer]) {
+      currentServer = Object.keys(serverGroupsMap)[0] || currentServer;
+      saveCurrentServer();
+      alliances = loadAlliances();
+      state = loadState();
+      if (db) connectBoardRef();
+    }
+    currentServerGroup = loadServerGroup(currentServer);
+    saveServerGroupsMapLocal();
+    updateServerLabels();
+    renderAll();
+    isApplyingRemote = false;
+  }, (err) => {
+    console.error(err);
+    if (String(err?.code || "").includes("PERMISSION_DENIED")) {
+      serverGroupsSyncAvailable = false;
+      try { ref.off(); } catch (offErr) {}
+      console.warn("serverGroups Firebase listener disabled: permission denied");
+      alert("서버 구성(serverGroups) Firebase 권한이 없어 서버 추가/삭제가 저장되지 않아.\nRealtime Database Rules에서 해당 경로 권한을 먼저 열어줘.");
+      updateServerLabels();
+      renderAll();
+    }
+  });
+}
+
+function connectBoardRef() {
+  if (!db) return;
+  if (boardRef) boardRef.off();
+  boardRef = db.ref(`${FIREBASE_PATH}/${getFirebaseServerKey()}`);
+  boardRef.on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+      pushBoardToFirebase();
+      return;
+    }
+    isApplyingRemote = true;
+    alliances = Array.isArray(data.alliances) ? [...new Set(data.alliances.map(normalizeAllianceName).filter(Boolean))] : [];
+    allianceSides = (data.allianceSides && typeof data.allianceSides === "object") ? decodeAllianceSidesMap(data.allianceSides) : {};
+    localStorage.setItem(getScopedStorageKey(ALLIANCE_SIDE_STORAGE_KEY), JSON.stringify(allianceSides));
+    const next = {};
+    for (const zone of ZONE_DEFS) next[zone.id] = normalizeEntry(zone, data.state?.[zone.id]);
+    state = next;
+    persistLocally();
+    isApplyingRemote = false;
+    renderAll();
+  });
+}
+
+
+function loadAdminSessionLocal() {
+  try {
+    const raw = localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      role: parsed.role === "super" ? "super" : parsed.role === "server" ? "server" : null,
+      serverId: normalizeServerId(parsed.serverId) || null
+    };
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+function saveAdminSessionLocal() {
+  if (!adminMode) {
+    localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+    return;
+  }
+  const payload = {
+    role: adminRole,
+    serverId: adminRole === "server" ? (serverAdminSession?.serverId || currentServer) : null
+  };
+  localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function clearAdminSessionLocal() {
+  localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+}
+
+function detachAdminRoleWatch() {
+  if (!authRoleWatchRef) return;
+  try {
+    authRoleWatchRef.off();
+  } catch (err) {
+    console.error(err);
+  }
+  authRoleWatchRef = null;
+}
+
+async function forceAdminLogout(message) {
+  detachAdminRoleWatch();
+  clearAdminSessionLocal();
+  serverAdminSession = null;
+  setAdminMode(false);
+  await signOutAdminAuth();
+  if (message) alert(message);
+}
+
+function attachAdminRoleWatch() {
+  detachAdminRoleWatch();
+  if (!db || !currentAuthUser?.uid || !adminMode) return;
+  if (adminRole === "super") {
+    authRoleWatchRef = db.ref(`roles/superAdmins/${currentAuthUser.uid}`);
+    authRoleWatchRef.on("value", async (snapshot) => {
+      if (snapshot.val() === true) return;
+      await forceAdminLogout("슈퍼관리자 권한이 제거되어 자동 로그아웃됐어.");
+    });
+    return;
+  }
+  if (adminRole === "server") {
+    const watchedServerId = serverAdminSession?.serverId || currentServer;
+    const serverKey = String(watchedServerId || "").replace("#", "");
+    authRoleWatchRef = db.ref(`roles/serverAdmins/${serverKey}/${currentAuthUser.uid}`);
+    authRoleWatchRef.on("value", async (snapshot) => {
+      if (snapshot.val() === true) return;
+      await forceAdminLogout(`${watchedServerId} 서버관리자 권한이 제거되어 자동 로그아웃됐어.`);
+    });
+  }
+}
+
+async function restoreAdminModeFromAuth(user) {
+  detachAdminRoleWatch();
+  if (!user) {
+    clearAdminSessionLocal();
+    if (adminMode || adminRole !== "viewer" || serverAdminSession) {
+      serverAdminSession = null;
+      setAdminMode(false);
+    }
+    return;
+  }
+  const savedSession = loadAdminSessionLocal();
+  try {
+    const isSuper = await isAuthorizedSuperUser(user.uid);
+    if (isSuper) {
+      serverAdminSession = null;
+      setAdminMode(true, "super");
+      saveAdminSessionLocal();
+      attachAdminRoleWatch();
+      return;
+    }
+
+    const candidateServerIds = [];
+    if (savedSession?.role === "server" && savedSession?.serverId) {
+      candidateServerIds.push(savedSession.serverId);
+    }
+    if (!candidateServerIds.includes(currentServer)) {
+      candidateServerIds.push(currentServer);
+    }
+
+    let matchedServerId = null;
+    for (const serverId of candidateServerIds) {
+      const ok = await isAuthorizedServerAdmin(user.uid, serverId);
+      if (ok) {
+        matchedServerId = serverId;
+        break;
+      }
+    }
+
+    if (matchedServerId) {
+      if (matchedServerId !== currentServer && serverGroupsMap[matchedServerId]) {
+        currentServer = matchedServerId;
+        currentServerGroup = loadServerGroup(matchedServerId);
+        saveCurrentServer();
+        alliances = loadAlliances();
+        state = loadState();
+        selectedZoneId = null;
+        if (editMode) stopEditMode();
+        updateServerLabels();
+        renderAll();
+        if (db) connectBoardRef();
+      }
+      serverAdminSession = {
+        serverId: matchedServerId,
+        email: user.email || "",
+        uid: user.uid,
+        name: user.email || ""
+      };
+      setAdminMode(true, "server");
+      saveAdminSessionLocal();
+      attachAdminRoleWatch();
+      return;
+    }
+
+    if (savedSession?.role === "super" || savedSession?.role === "server" || adminMode) {
+      await forceAdminLogout("관리자 권한이 없거나 제거되어 자동 로그아웃됐어.");
+      return;
+    }
+
+    serverAdminSession = null;
+    setAdminMode(false);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+
+function initFirebase() {
+  if (!FIREBASE_ENABLED || !window.firebase) return;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
+    auth.onAuthStateChanged((user) => {
+      currentAuthUser = user || null;
+      restoreAdminModeFromAuth(currentAuthUser).catch(console.error);
+    });
+    connectServerGroupRef();
+    connectBoardRef();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function switchServer(nextServer) {
+  const normalized = normalizeServerId(nextServer);
+  if (!normalized) {
+    alert("서버 번호는 #1234 형식만 사용할 수 있어.");
+    return;
+  }
+  if (!serverGroupsMap[normalized]) {
+    alert("대표 서버로 저장된 항목만 이동할 수 있어.");
+    return;
+  }
+  if (normalized === currentServer) return;
+
+  currentServer = normalized;
+  currentServerGroup = loadServerGroup(normalized);
+  if (adminRole === "server") {
+    serverAdminSession = null;
+    adminRole = "viewer";
+    adminMode = false;
+    signOutAdminAuth();
+  }
+  saveCurrentServer();
+  alliances = loadAlliances();
+  allianceSides = loadAllianceSides();
+  state = loadState();
+  selectedZoneId = null;
+  if (editMode) stopEditMode();
+  updateServerLabels();
+  renderAll();
+
+  if (db) connectBoardRef();
+}
+
+async function signOutAdminAuth() {
+  if (!auth) return;
+  try {
+    await auth.signOut();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function isAuthorizedSuperUser(uid) {
+  if (!db || !uid) return false;
+  const snap = await db.ref(`roles/superAdmins/${uid}`).get();
+  return snap.exists() && snap.val() === true;
+}
+
+async function isAuthorizedServerAdmin(uid, serverId = currentServer) {
+  if (!db || !uid) return false;
+  const key = String(serverId || '').replace('#', '');
+  const snap = await db.ref(`roles/serverAdmins/${key}/${uid}`).get();
+  return snap.exists() && snap.val() === true;
+}
+
+async function signInWithRole(email, password, role) {
+  if (!auth) throw new Error('Firebase Auth가 준비되지 않았어.');
+  const cred = await auth.signInWithEmailAndPassword(email, password);
+  const uid = cred.user?.uid;
+  const ok = role === 'super'
+    ? await isAuthorizedSuperUser(uid)
+    : await isAuthorizedServerAdmin(uid, currentServer);
+  if (!ok) {
+    await signOutAdminAuth();
+    throw new Error(role === 'super' ? '슈퍼관리자 권한이 없는 계정이야.' : `${currentServer} 서버관리자 권한이 없는 계정이야.`);
+  }
+  return cred.user;
+}
+
+function setAdminMode(next, role = next ? adminRole : "viewer") {
+  if (!next) {
+    adminRole = "viewer";
+    serverAdminSession = null;
+  } else {
+    adminRole = role;
+  }
+  updateServerLabels();
+  adminMode = next;
+  adminModeBtn.classList.toggle("active", adminMode);
+  adminModeBtn.textContent = adminMode ? "관리자 종료" : "관리자 모드";
+  editorPanel.classList.toggle("editor-hidden", !(adminMode && isSuperAdmin()));
+  updateEditorPanelCollapseUI();
+  if ((!adminMode || !canEditCoordinates()) && editMode) stopEditMode();
+  if (adminMode) {
+    saveAdminSessionLocal();
+  } else {
+    clearAdminSessionLocal();
+    detachAdminRoleWatch();
+  }
+  updateAdminStatusUI();
+  renderAll();
+}
+
+
+function setZoneOwner(zoneId, owner) {
+  if (!canManageCurrentServer()) {
+    alert("현재 서버 관리자 또는 슈퍼관리자만 점령 연맹을 바꿀 수 있어.");
+    return;
+  }
+  const zone = zoneMap[zoneId];
+  if (!zone) return;
+  const normalizedOwner = normalizeAllianceName(owner) || null;
+  state[zoneId] = {
+    ...state[zoneId],
+    name: zone.name,
+    type: zone.type,
+    owner: normalizedOwner,
+    status: normalizedOwner ? "occupied" : "vacant",
+    updated_at: nowString()
+  };
+  saveState();
+  renderAll();
+}
+
+function refreshEditorPanel() {
+  editorPanel.classList.toggle("editor-hidden", !(adminMode && isSuperAdmin()));
+  updateEditorPanelCollapseUI();
+  editorLayer.style.display = adminMode && editMode ? "block" : "none";
+  editorModeLabel.textContent = editMode ? "편집 켜짐" : "편집 꺼짐";
+  const zone = selectedZoneId ? zoneMap[selectedZoneId] : null;
+  editorTargetName.textContent = zone ? `${zone.name} (${zone.id})` : "선택된 영지 없음";
+  editorPointCount.textContent = String(editPoints.length);
+  toggleEditBtn.textContent = editMode ? "편집 종료" : "편집 시작";
+  savePolygonBtn.disabled = !selectedZoneId || editPoints.length < 3;
+  undoPointBtn.disabled = editPoints.length === 0;
+  clearPointsBtn.disabled = editPoints.length === 0;
+  copyZoneBtn.disabled = !selectedZoneId;
+  exportZonePolygonsBtn.disabled = !canEditCoordinates();
+  toggleEditBtn.disabled = !canEditCoordinates();
+  if (manageServerAdminBtn) manageServerAdminBtn.disabled = !isSuperAdmin();
+  if (removeServerAdminBtn) removeServerAdminBtn.disabled = !isSuperAdmin();
+  if (changeServerBtn) changeServerBtn.disabled = !isSuperAdmin();
+  if (deleteServerBtn) deleteServerBtn.disabled = !isSuperAdmin();
+  if (changeSuperPasswordBtn) changeSuperPasswordBtn.disabled = !isSuperAdmin();
+  if (changeCurrentAdminPasswordBtn) changeCurrentAdminPasswordBtn.disabled = !(isSuperAdmin() || isServerAdminForCurrentServer());
+}
+
+function renderEditorLayer() {
+  editorLayer.innerHTML = "";
+  if (!editMode || !selectedZoneId) {
+    refreshEditorPanel();
+  updateEditorPanelCollapseUI();
+    return;
+  }
+  const ns = "http://www.w3.org/2000/svg";
+  if (editPoints.length >= 2) {
+    const open = document.createElementNS(ns, "polyline");
+    open.setAttribute("class", "editor-polyline");
+    open.setAttribute("points", pointArrayToString(editPoints));
+    editorLayer.appendChild(open);
+  }
+  if (editPoints.length >= 3) {
+    const poly = document.createElementNS(ns, "polygon");
+    poly.setAttribute("class", "editor-polygon");
+    poly.setAttribute("points", pointArrayToString(editPoints));
+    editorLayer.appendChild(poly);
+  }
+  editPoints.forEach((p, index) => {
+    const circle = document.createElementNS(ns, "circle");
+    circle.setAttribute("class", "editor-handle");
+    circle.setAttribute("r", "10");
+    circle.setAttribute("cx", p.x);
+    circle.setAttribute("cy", p.y);
+    circle.dataset.index = String(index);
+    circle.addEventListener("pointerdown", (event) => {
+      draggingPointIndex = index;
+      circle.setPointerCapture(event.pointerId);
+      event.stopPropagation();
+    });
+    circle.addEventListener("pointermove", (event) => {
+      if (draggingPointIndex !== index) return;
+      editPoints[index] = getSvgPointFromEvent(event);
+      renderEditorLayer();
+    });
+    circle.addEventListener("pointerup", () => draggingPointIndex = null);
+    circle.addEventListener("pointercancel", () => draggingPointIndex = null);
+    editorLayer.appendChild(circle);
+    const label = document.createElementNS(ns, "text");
+    label.setAttribute("class", "editor-index");
+    label.setAttribute("x", p.x + 12);
+    label.setAttribute("y", p.y - 12);
+    label.textContent = String(index + 1);
+    editorLayer.appendChild(label);
+  });
+  refreshEditorPanel();
+}
+
+function beginEditMode() {
+  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 편집을 할 수 있어.");
+  if (!selectedZoneId) return alert("먼저 왼쪽 목록이나 맵에서 영지 하나를 선택해줘.");
+  editMode = true;
+  editPoints = pointStringToArray(zoneMap[selectedZoneId].points || "");
+  renderEditorLayer();
+}
+
+function stopEditMode() {
+  editMode = false;
+  editPoints = [];
+  draggingPointIndex = null;
+  renderEditorLayer();
+}
+
+function saveCurrentPolygon() {
+  if (!selectedZoneId) return;
+  if (editPoints.length < 3) return alert("폴리곤 저장은 최소 3개의 점이 필요해.");
+  const zone = zoneMap[selectedZoneId];
+  const points = pointArrayToString(editPoints);
+  zone.shape = "polygon";
+  zone.points = points;
+  editOverrides[selectedZoneId] = { points, updated_at: new Date().toISOString() };
+  saveEditOverrides();
+  renderAll();
+  alert(`${zone.name} 좌표를 저장했어.`);
+}
+
+async function copyCurrentZoneJson() {
+  if (!selectedZoneId) return;
+  const zone = zoneMap[selectedZoneId];
+  const payload = { id: zone.id, name: zone.name, type: zone.type, shape: "polygon", points: zone.points || pointArrayToString(editPoints) };
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    alert("선택 영지 JSON을 복사했어.");
+  } catch (err) {
+    console.error(err);
+    alert("클립보드 복사에 실패했어.");
+  }
+}
+
+function exportZonePolygons() {
+  const payload = Object.values(zoneMap).map(zone => ({ id: zone.id, name: zone.name, type: zone.type, shape: zone.shape, points: zone.points || "" }));
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "darkwar_zone_polygons.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function buildBoardBackup() {
+  return {
+    version: 4,
+    exported_at: new Date().toISOString(),
+    map_size: { width: MAP_WIDTH, height: MAP_HEIGHT },
+    state,
+    editOverrides,
+    alliances,
+    allianceSides
+  };
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportBoardBackup() {
+  downloadJson(`darkwar_board_backup_v4_${Date.now()}.json`, buildBoardBackup());
+}
+
+function applyImportedBoard(data) {
+  if (!data || typeof data !== "object") throw new Error("복원 파일 형식이 올바르지 않아.");
+  if (Array.isArray(data.alliances)) {
+    alliances = [...new Set(data.alliances.map(normalizeAllianceName).filter(Boolean))];
+  }
+  if (data.allianceSides && typeof data.allianceSides === "object") {
+    allianceSides = data.allianceSides;
+  }
+  if (data.allianceSides && typeof data.allianceSides === "object") {
+    allianceSides = data.allianceSides;
+  }
+  if (data.editOverrides && typeof data.editOverrides === "object") {
+    editOverrides = data.editOverrides;
+    applyEditOverrides();
+  }
+  if (data.state && typeof data.state === "object") {
+    const next = {};
+    for (const zone of ZONE_DEFS) next[zone.id] = normalizeEntry(zone, data.state[zone.id]);
+    state = next;
+  }
+  persistLocally();
+  pushBoardToFirebase();
+  renderAll();
+}
+
+function restoreBoardBackupFromFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result || "{}"));
+      applyImportedBoard(parsed);
+      alert("JSON 복원을 완료했어.");
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || "JSON 복원에 실패했어.");
+    } finally {
+      restoreFile.value = "";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+function rescaleAllZones(oldW, oldH) {
+  const scaleX = MAP_WIDTH / oldW;
+  const scaleY = MAP_HEIGHT / oldH;
+  const nextOverrides = { ...editOverrides };
+  for (const zone of Object.values(zoneMap)) {
+    if (zone.shape !== "polygon" || !zone.points) continue;
+    const converted = pointStringToArray(zone.points).map(({ x, y }) => ({
+      x: Math.max(0, Math.min(MAP_WIDTH, Math.round(x * scaleX))),
+      y: Math.max(0, Math.min(MAP_HEIGHT, Math.round(y * scaleY)))
+    }));
+    const pointString = pointArrayToString(converted);
+    zone.points = pointString;
+    nextOverrides[zone.id] = {
+      ...(nextOverrides[zone.id] || {}),
+      points: pointString,
+      updated_at: new Date().toISOString(),
+      rescaled_from: { width: oldW, height: oldH }
+    };
+  }
+  editOverrides = nextOverrides;
+  if (selectedZoneId && zoneMap[selectedZoneId]?.points) {
+    editPoints = pointStringToArray(zoneMap[selectedZoneId].points);
+  }
+  saveEditOverrides();
+  renderAll();
+}
+
+function runRescaleFlow() {
+  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 보정을 실행할 수 있어.");
+  const oldW = Number(rescaleWidthInput.value || 0);
+  const oldH = Number(rescaleHeightInput.value || 0);
+  if (!Number.isFinite(oldW) || !Number.isFinite(oldH) || oldW <= 0 || oldH <= 0) {
+    return alert("기존 기준 가로/세로를 올바르게 입력해줘.");
+  }
+  const ok = confirm(`기존 기준 ${oldW}×${oldH} 에서 현재 맵 기준 ${MAP_WIDTH}×${MAP_HEIGHT} 로 전체 좌표를 보정할까?
+
+보정 전에 JSON 백업을 받아두는 걸 권장해.`);
+  if (!ok) return;
+  rescaleAllZones(oldW, oldH);
+  alert("전체 좌표 보정을 완료했어. 화면 확인 후 그대로 사용하면 돼.");
+}
+
+function shiftAllZonesY(deltaY) {
+  const nextOverrides = { ...editOverrides };
+  for (const zone of Object.values(zoneMap)) {
+    if (zone.shape !== "polygon" || !zone.points) continue;
+    const converted = pointStringToArray(zone.points).map(({ x, y }) => ({
+      x: Math.max(0, Math.min(MAP_WIDTH, Math.round(x))),
+      y: Math.max(-MAP_HEIGHT, Math.min(MAP_HEIGHT * 2, Math.round(y + deltaY)))
+    }));
+    const pointString = pointArrayToString(converted);
+    zone.points = pointString;
+    nextOverrides[zone.id] = {
+      ...(nextOverrides[zone.id] || {}),
+      points: pointString,
+      updated_at: new Date().toISOString(),
+      shifted_y_by: deltaY
+    };
+  }
+  editOverrides = nextOverrides;
+  if (selectedZoneId && zoneMap[selectedZoneId]?.points) {
+    editPoints = pointStringToArray(zoneMap[selectedZoneId].points);
+  }
+  saveEditOverrides();
+  renderAll();
+}
+
+function openShiftYModalFlow() {
+  if (!canEditCoordinates()) return alert("슈퍼관리자만 Y 위치 보정을 열 수 있어.");
+  shiftYInput.value = "0";
+  shiftYModal.classList.remove("hidden");
+  shiftYInput.focus();
+  shiftYInput.select();
+}
+
+function closeShiftYModalFlow() {
+  shiftYModal.classList.add("hidden");
+}
+
+function applyShiftYFlow() {
+  if (!canEditCoordinates()) return alert("슈퍼관리자만 Y 위치 보정을 실행할 수 있어.");
+  const deltaY = Number(shiftYInput.value || 0);
+  if (!Number.isFinite(deltaY) || !Number.isInteger(deltaY)) {
+    return alert("Y 이동값은 정수로 입력해줘.");
+  }
+  if (deltaY === 0) return alert("0이 아닌 값을 입력해줘. 예: -120 또는 80");
+  const ok = confirm(`전체 영지 좌표의 Y값을 ${deltaY > 0 ? '+' : ''}${deltaY} 만큼 이동할까?
+
+음수는 위로, 양수는 아래로 이동해.`);
+  if (!ok) return;
+  shiftAllZonesY(deltaY);
+  closeShiftYModalFlow();
+  alert(`전체 Y 보정을 완료했어. (${deltaY > 0 ? '+' : ''}${deltaY})`);
+}
+
+
+function formatOwnerTag(owner) {
+  const raw = String(owner || "").trim();
+  if (!raw) return "";
+  return `[${raw.length > 8 ? raw.slice(0, 8) : raw}]`;
+}
+
+function getOwnerTagOffset(zone) {
+  if (zone.type === "core") return 44;
+  if (zone.type === "gate" || zone.type === "entry") return 24;
+  return 30;
+}
+
+function makeOwnerTag(zone) {
+  const ns = "http://www.w3.org/2000/svg";
+  const text = document.createElementNS(ns, "text");
+  const [cx, cy] = getCenter(zone);
+  text.setAttribute("x", cx);
+  text.setAttribute("y", cy + getOwnerTagOffset(zone));
+  text.setAttribute("class", "zone-owner-tag" + ((zone.type === "gate" || zone.type === "entry") ? " small" : ""));
+  text.dataset.zoneId = zone.id;
+  return text;
+}
+
+function makeShape(zone) {
+  const ns = "http://www.w3.org/2000/svg";
+  let el;
+  if (zone.shape === "rect") {
+    el = document.createElementNS(ns, "rect");
+    el.setAttribute("x", zone.x); el.setAttribute("y", zone.y); el.setAttribute("width", zone.w); el.setAttribute("height", zone.h); el.setAttribute("rx", zone.rx || 18);
+  } else if (zone.shape === "ellipse") {
+    el = document.createElementNS(ns, "ellipse");
+    el.setAttribute("cx", zone.cx); el.setAttribute("cy", zone.cy); el.setAttribute("rx", zone.rx); el.setAttribute("ry", zone.ry);
+  } else {
+    el = document.createElementNS(ns, "polygon");
+    el.setAttribute("points", zone.points);
+  }
+  el.dataset.zoneId = zone.id;
+  el.classList.add("zone-shape", zone.type);
+  return el;
+}
+
+function makeLabel(zone) {
+  const ns = "http://www.w3.org/2000/svg";
+  const text = document.createElementNS(ns, "text");
+  const [cx, cy] = getCenter(zone);
+  text.setAttribute("x", cx); text.setAttribute("y", cy + 6);
+  text.setAttribute("class", "zone-label" + ((zone.type === "gate" || zone.type === "entry") ? " small" : ""));
+  text.textContent = zone.type === "gate" ? "관문" : zone.type === "entry" ? "진입" : zone.type === "core" ? "핵심" : zone.name;
+  text.dataset.zoneId = zone.id;
+  return text;
+}
+
+function isVisibleZone(zone) {
+  if (!allTerritoriesVisible) return false;
+  const entry = state[zone.id];
+  if (activeLevelFilter !== "all" && deriveGroupKey(zone) !== activeLevelFilter) return false;
+  if (activeOwnerFilter === "vacant") return !entry.owner;
+  if (activeOwnerFilter !== "all" && entry.owner !== activeOwnerFilter) return false;
+  return true;
+}
+
+function applyOwnerStyle(shape, entry) {
+  shape.style.removeProperty("fill");
+  shape.style.removeProperty("stroke");
+  shape.style.removeProperty("stroke-width");
+  shape.style.removeProperty("filter");
+  shape.style.removeProperty("color");
+  if (!entry.owner) return;
+  const color = ownerColor(entry.owner);
+  shape.style.fill = hexToRgba(color, 0.38);
+  shape.style.stroke = hexToRgba(color, 0.98);
+  shape.style.strokeWidth = "4.2";
+  shape.style.color = color;
+  shape.style.filter = `drop-shadow(0 0 8px ${hexToRgba(color, 0.55)}) drop-shadow(0 0 20px ${hexToRgba(color, 0.28)})`;
+}
+
+function renderLevelFilters() {
+  levelFilterBar.innerHTML = "";
+  for (const key of getLevelFilterOptions()) {
+    const btn = document.createElement("button");
+    btn.className = "level-filter-btn" + (activeLevelFilter === key ? " active" : "");
+    btn.textContent = key === "all" ? "전체" : groupLabelFromKey(key);
+    btn.addEventListener("click", () => { activeLevelFilter = key; renderAll(); });
+    levelFilterBar.appendChild(btn);
+  }
+}
+
+function renderOwnerFilters() {
+  ownerFilterBar.innerHTML = "";
+  const items = [{key:"all",label:"전체"},{key:"vacant",label:"미점령"},...alliances.map(name=>({key:name,label:name}))];
+  for (const item of items) {
+    const btn = document.createElement("button");
+    btn.className = "owner-filter-btn" + (activeOwnerFilter === item.key ? " active" : "");
+    const sideLabel = item.key === "all" || item.key === "vacant" ? "" : (getAllianceSideLabel(item.label) ? ` (${getAllianceSideLabel(item.label)})` : "");
+    btn.innerHTML = (item.key === "all" || item.key === "vacant") ? item.label : `${dotHtml(item.label)}${item.label}${sideLabel}`;
+    btn.addEventListener("click", () => { activeOwnerFilter = item.key; renderAll(); });
+    ownerFilterBar.appendChild(btn);
+  }
+}
+
+function renderOwnerActions() {
+  if (!selectedOwnerActions) return;
+  selectedOwnerActions.innerHTML = "";
+  if (!selectedZoneId) return;
+  const currentOwner = state[selectedZoneId]?.owner || null;
+  for (const owner of [null, ...alliances]) {
+    const btn = document.createElement("button");
+    btn.className = "assign-owner-btn" + ((currentOwner || null) === owner ? " active" : "");
+    btn.disabled = !canManageCurrentServer();
+    const sideLabel = owner ? getAllianceSideLabel(owner) : null;
+    btn.innerHTML = owner ? `${dotHtml(owner)}${owner}${sideLabel ? ` (${sideLabel})` : ""}` : `${dotHtml(null)}미점령`;
+    btn.addEventListener("click", () => setZoneOwner(selectedZoneId, owner));
+    selectedOwnerActions.appendChild(btn);
+  }
+}
+
+function initOverlayElements() {
+  if (overlayInitialized) return;
+  const zones = Object.values(zoneMap).sort((a, b) => {
+    const order = (z) => (z.type === "gate" ? 2 : z.type === "entry" ? 1 : 0);
+    return order(a) - order(b);
+  });
+  for (const zone of zones) {
+    const shape = makeShape(zone);
+    shape.addEventListener("mouseenter", (e) => showTooltip(zone, e));
+    shape.addEventListener("mouseleave", hideTooltip);
+    shape.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectedZoneId = zone.id;
+      if (editMode) editPoints = pointStringToArray(zoneMap[zone.id].points || "");
+      renderAll();
+    });
+    shape.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openOwnerChangeModal(zone.id);
+    });
+    overlay.appendChild(shape);
+    shapeElements.set(zone.id, shape);
+
+    const label = makeLabel(zone);
+    overlay.appendChild(label);
+    labelElements.set(zone.id, label);
+
+    const ownerTag = makeOwnerTag(zone);
+    overlay.appendChild(ownerTag);
+    ownerTagElements.set(zone.id, ownerTag);
+  }
+  overlayInitialized = true;
+}
+
+function renderMap() {
+  initOverlayElements();
+  renderInfluenceOverlay();
+  for (const zone of Object.values(zoneMap)) {
+    const entry = state[zone.id];
+    const visible = isVisibleZone(zone);
+    const shape = shapeElements.get(zone.id);
+    const label = labelElements.get(zone.id);
+    const ownerTag = ownerTagElements.get(zone.id);
+    if (!shape || !label || !ownerTag) continue;
+
+    if (zone.shape === "polygon" && shape.getAttribute("points") !== zone.points) {
+      shape.setAttribute("points", zone.points);
+    }
+    const [cx, cy] = getCenter(zone);
+    label.setAttribute("x", cx);
+    label.setAttribute("y", cy + 6);
+    ownerTag.setAttribute("x", cx);
+    ownerTag.setAttribute("y", cy + getOwnerTagOffset(zone));
+
+    shape.className.baseVal = `zone-shape ${zone.type}`;
+    applyOwnerStyle(shape, entry);
+    shape.classList.toggle("owned-glow", !!entry.owner);
+    shape.classList.toggle("dimmed", !visible);
+    shape.classList.toggle("focused", zone.id === selectedZoneId);
+    shape.style.display = allTerritoriesVisible ? "" : "none";
+
+    label.className.baseVal = "zone-label" + (entry.owner ? " owned" : "") + ((zone.type === "gate" || zone.type === "entry") ? " small" : "");
+    label.classList.toggle("dimmed", !visible);
+    label.style.display = (allTerritoriesVisible && !entry.owner) ? "" : "none";
+    if (entry.owner) {
+      label.textContent = "";
+    } else {
+      const nextText = (zone.type === "gate" ? "관문" : zone.type === "entry" ? "진입" : zone.type === "core" ? "핵심" : zone.name);
+      if (label.textContent !== nextText) label.textContent = nextText;
+    }
+
+    ownerTag.className.baseVal = "zone-owner-tag" + ((zone.type === "gate" || zone.type === "entry") ? " small" : "");
+    ownerTag.style.display = (allTerritoriesVisible && visible && entry.owner && zone.type !== "gate" && zone.type !== "entry") ? "" : "none";
+    ownerTag.setAttribute("fill", ownerColor(entry.owner) || "#ffffff");
+    const ownerTagText = entry.owner ? `[${String(entry.owner).trim()}]` : "";
+    if (ownerTag.textContent !== ownerTagText) ownerTag.textContent = ownerTagText;
+  }
+  toggleAllTerritoriesBtn.textContent = allTerritoriesVisible ? "전체 영지 숨기기" : "전체 영지 표시";
+}
+
+function showTooltip(zone, evt) {
+  if (!isVisibleZone(zone)) return;
+  const entry = state[zone.id];
+  tooltipTitle.textContent = zone.name;
+  const sideLabel = entry.owner ? getAllianceSideLabel(entry.owner) : null;
+  tooltipBody.innerHTML = `유형: ${typeText(zone.type)}<br>점령 연맹: ${ownerText(entry.owner)}${sideLabel ? ` (${sideLabel})` : ""}<br>상태: ${statusText(entry)}<br>ID: ${zone.id}<br>갱신: ${entry.updated_at || "-"}`;
+  tooltip.classList.add("show");
+  moveTooltip(evt);
+}
+
+function moveTooltip(evt) {
+  const rect = mapShell.getBoundingClientRect();
+  tooltip.style.left = `${evt.clientX - rect.left + 14}px`;
+  tooltip.style.top = `${evt.clientY - rect.top - 16}px`;
+}
+function hideTooltip() { tooltip.classList.remove("show"); }
+
+function renderSelected() {
+  const nameEl = document.getElementById("selectedName");
+  const idEl = document.getElementById("selectedId");
+  const typeEl = document.getElementById("selectedType");
+  const ownerEl = document.getElementById("selectedOwner");
+  const statusEl = document.getElementById("selectedStatus");
+  const timeEl = document.getElementById("selectedTime");
+  if (!nameEl || !idEl || !typeEl || !ownerEl || !statusEl || !timeEl || !selectedOwnerActions) return;
+  if (!selectedZoneId || !zoneMap[selectedZoneId]) {
+    nameEl.textContent = "선택 없음"; idEl.textContent = "ID: -"; typeEl.textContent = "유형: -"; ownerEl.textContent = "점령 연맹: -"; statusEl.textContent = "상태: -"; timeEl.textContent = "갱신: -"; selectedOwnerActions.innerHTML = ""; return;
+  }
+  const zone = zoneMap[selectedZoneId];
+  const entry = state[selectedZoneId];
+  nameEl.textContent = zone.name;
+  idEl.textContent = `ID: ${zone.id}`;
+  typeEl.textContent = `유형: ${typeText(zone.type)}`;
+  ownerEl.textContent = `점령 연맹: ${ownerText(entry.owner)}`;
+  statusEl.textContent = `상태: ${statusText(entry)}`;
+  timeEl.textContent = `갱신: ${entry.updated_at || "-"}`;
+  renderOwnerActions();
+}
+
+function renderStats() {
+  const visibleZones = Object.values(zoneMap).filter(isVisibleZone);
+  const occupied = visibleZones.filter(zone => state[zone.id].owner).length;
+  const vacant = visibleZones.length - occupied;
+  const score = getScoreBarSummary();
+  const orderServers = (currentServerGroup?.allies || []).join(", ") || "-";
+  const revengeServers = (currentServerGroup?.enemies || []).join(", ") || "-";
+  const rankings = getAllianceRankings();
+  const maxAllianceScore = rankings.length ? rankings[0].score : 1;
+  const allianceRows = alliances.map(name => {
+    const power = visibleZones
+      .filter(zone => state[zone.id].owner === name)
+      .reduce((sum, zone) => sum + getZonePower(zone), 0);
+    const sideLabel = getAllianceSideLabel(name);
+    const label = sideLabel ? `${name} (${sideLabel})` : name;
+    return `<div class="row"><span>${label}</span><strong>${power.toLocaleString()}</strong></div>`;
+  }).join("");
+  const rankingHtml = rankings.length
+    ? rankings.map((item, index) => {
+        const percent = maxAllianceScore ? Math.max(8, (item.score / maxAllianceScore) * 100) : 0;
+        const sideLabel = item.side === 'order' ? '질서' : item.side === 'revenge' ? '복수' : '미지정';
+        return `
+          <div class="ranking-item">
+            <div class="ranking-rank">${index + 1}</div>
+            <div class="ranking-main">
+              <div class="ranking-name">${dotHtml(item.name)}${item.name}<span class="ranking-side">${sideLabel}</span></div>
+              <div class="ranking-bar"><span style="width:${percent}%; background:${item.color};"></span></div>
+            </div>
+            <div class="ranking-score">${item.score.toLocaleString()}</div>
+          </div>`;
+      }).join("")
+    : '<div class="muted">아직 점령된 영지가 없어.</div>';
+
+  stats.innerHTML = `
+    <div class="scoreboard-wrap">
+      <div class="scorebar-card">
+        <div class="scorebar-head">
+          <span class="score-side-badge"><span class="score-side-dot order"></span>질서 <strong>${score.order.toLocaleString()}</strong></span>
+          <span class="score-side-badge"><span class="dot vacant"></span>미지정 <strong>${score.unassigned.toLocaleString()}</strong></span>
+          <span class="score-side-badge"><span class="score-side-dot revenge"></span>복수 <strong>${score.revenge.toLocaleString()}</strong></span>
+        </div>
+        <div class="scorebar-track">
+          <div class="scorebar-order" style="width:${score.orderPercent}%;"></div>
+          <div class="scorebar-unassigned" style="left:${score.orderPercent}%; width:${score.unassignedPercent}%;"></div>
+          <div class="scorebar-revenge" style="width:${score.revengePercent}%;"></div>
+          <div class="scorebar-centerline"></div>
+        </div>
+        <div class="scorebar-labels">
+          <span>질서 ${Math.round(score.orderPercent)}%</span>
+          <span>${score.total ? `총 ${score.total.toLocaleString()}pt · 미지정 ${score.unassigned.toLocaleString()}` : '아직 점령 없음'}</span>
+          <span>복수 ${Math.round(score.revengePercent)}%</span>
+        </div>
+      </div>
+      <div class="ranking-card">
+        <div class="ranking-title"><span>연맹 순위</span><span class="muted">세력치</span></div>
+        <div class="ranking-list">${rankingHtml}</div>
+      </div>
+    </div>
+    <div class="row"><span>질서 서버</span><strong>${orderServers}</strong></div>
+    <div class="row"><span>복수 서버</span><strong>${revengeServers}</strong></div>
+    <div class="row"><span>표시 영지</span><strong>${visibleZones.length}</strong></div>
+    <div class="row"><span>점령</span><strong>${occupied}</strong></div>
+    <div class="row"><span>미점령</span><strong>${vacant}</strong></div>
+    ${allianceRows || '<div class="row"><span>연맹</span><strong>0</strong></div>'}`;
+}
+
+function renderList() {
+  zoneList.innerHTML = "";
+  const visibleZones = Object.values(zoneMap).filter(isVisibleZone);
+  const groups = new Map();
+  for (const zone of visibleZones) {
+    const key = deriveGroupKey(zone);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(zone);
+  }
+  const sortedEntries = [...groups.entries()].sort((a,b)=>groupSortValue(a[0])-groupSortValue(b[0]));
+  for (const [key, items] of sortedEntries) {
+    items.sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+    const details = document.createElement("details");
+    details.className = "zone-group";
+    details.open = true;
+    const occupiedCount = items.filter(zone => state[zone.id].owner).length;
+    const summary = document.createElement("summary");
+    summary.innerHTML = `<span class="group-title">${groupLabelFromKey(key)}</span><span class="group-count">${occupiedCount}/${items.length} 점령</span>`;
+    details.appendChild(summary);
+    const itemsWrap = document.createElement("div");
+    itemsWrap.className = "group-items";
+    for (const zone of items) {
+      const entry = state[zone.id];
+      const item = document.createElement("div");
+      item.className = "zone-item" + (zone.id === selectedZoneId ? " active" : "");
+      const sideLabel = entry.owner ? getAllianceSideLabel(entry.owner) : null;
+      const ownerLabel = entry.owner ? `${ownerText(entry.owner)}${sideLabel ? ` (${sideLabel})` : ''}` : ownerText(entry.owner);
+      item.innerHTML = `<div class="zone-item-top"><div class="zone-meta"><div class="zone-name">${zone.name}</div><div class="zone-sub">${typeText(zone.type)} · ${zone.id}</div><div class="zone-sub">${ownerLabel}</div></div><div class="zone-item-actions"><span class="owner-chip${canManageCurrentServer() ? ' clickable' : ''}">${dotHtml(entry.owner)}${statusText(entry)}</span>${canManageCurrentServer() ? '<button type="button" class="zone-change-btn">점령 변경</button>' : ''}</div></div>`;
+      item.addEventListener("click", (event) => {
+        if (event.target.closest('.zone-change-btn') || event.target.closest('.owner-chip')) return;
+        selectedZoneId = zone.id;
+        if (editMode) editPoints = pointStringToArray(zoneMap[zone.id].points || "");
+        renderAll();
+      });
+      const changeBtn = item.querySelector('.zone-change-btn');
+      if (changeBtn) {
+        changeBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          openOwnerChangeModal(zone.id);
+        });
+      }
+      const ownerChip = item.querySelector('.owner-chip.clickable');
+      if (ownerChip) {
+        ownerChip.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          openOwnerChangeModal(zone.id);
+        });
+      }
+      itemsWrap.appendChild(item);
+    }
+    details.appendChild(itemsWrap);
+    zoneList.appendChild(details);
+  }
+  if (!sortedEntries.length) zoneList.innerHTML = `<div class="zone-item"><div class="zone-meta"><div class="zone-name">표시 중인 영지가 없어</div><div class="zone-sub">좌측 필터나 전체 영지 표시 버튼을 확인해줘.</div></div></div>`;
+}
+
+let renderQueued = false;
+function renderAll() {
+  updateServerLabels();
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    updateAdminStatusUI();
+    renderLevelFilters();
+    renderOwnerFilters();
+    renderMap();
+    renderSelected();
+    renderStats();
+    renderList();
+    renderEditorLayer();
+  });
+}
+
+
+function openServerGroupModal() {
+  if (serverGroupCurrentInput) serverGroupCurrentInput.value = currentServerGroup?.current || currentServer || "";
+  if (serverGroupAlly1Input) serverGroupAlly1Input.value = currentServerGroup?.allies?.[0] || "";
+  if (serverGroupAlly2Input) serverGroupAlly2Input.value = currentServerGroup?.allies?.[1] || "";
+  if (serverGroupEnemy1Input) serverGroupEnemy1Input.value = currentServerGroup?.enemies?.[0] || "";
+  if (serverGroupEnemy2Input) serverGroupEnemy2Input.value = currentServerGroup?.enemies?.[1] || "";
+  serverGroupModal?.classList.remove("hidden");
+}
+
+function closeServerGroupModal() {
+  serverGroupModal?.classList.add("hidden");
+}
+
+function configureServerGroup() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 서버 구성을 바꿀 수 있어.");
+    return;
+  }
+  openServerGroupModal();
+}
+
+function saveServerGroupFromModal() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 서버 구성을 저장할 수 있어.");
+    return;
+  }
+  if (!db || !serverGroupsSyncAvailable) {
+    alert("서버 구성은 이제 로컬에 저장하지 않아.\nFirebase serverGroups 권한이 정상일 때만 저장돼.");
+    return;
+  }
+  const nextCurrent = normalizeServerId(serverGroupCurrentInput?.value);
+  if (!nextCurrent) {
+    alert("대표 서버를 #1234 형식으로 입력해줘.");
+    serverGroupCurrentInput?.focus();
+    return;
+  }
+  const nextGroup = normalizeServerGroupData({
+    current: nextCurrent,
+    allies: [serverGroupAlly1Input?.value, serverGroupAlly2Input?.value],
+    enemies: [serverGroupEnemy1Input?.value, serverGroupEnemy2Input?.value]
+  }, nextCurrent);
+  serverGroupsMap[nextGroup.current] = nextGroup;
+  if (nextGroup.current !== "#0000") delete serverGroupsMap["#0000"];
+  currentServer = nextGroup.current;
+  currentServerGroup = nextGroup;
+  saveCurrentServer();
+  saveServerGroupsMapLocal();
+  pushServerGroupToFirebase();
+  alliances = loadAlliances();
+  allianceSides = loadAllianceSides();
+  state = loadState();
+  if (db) connectBoardRef();
+  closeServerGroupModal();
+  updateServerLabels();
+  renderAll();
+  alert(`서버 구성을 저장했어. 이제 ${nextGroup.current} 이 대표 서버로 표시돼.`);
+}
+
+async function deleteCurrentServer() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 서버를 삭제할 수 있어.");
+    return;
+  }
+  if (!db || !serverGroupsSyncAvailable) {
+    alert("서버 삭제도 이제 로컬에서는 처리하지 않아.\nFirebase serverGroups 권한이 정상일 때만 삭제돼.");
+    return;
+  }
+
+  const targetServer = normalizeServerId(currentServer);
+  if (!targetServer) {
+    alert("삭제할 서버 번호를 확인할 수 없어.");
+    return;
+  }
+
+  const targetKey = targetServer.replace("#", "");
+  const records = await fetchServerAdminRecords(targetServer);
+  const adminCount = Array.isArray(records) ? records.length : 0;
+
+  const ok = confirm([
+    `${targetServer} 서버를 삭제할까?`,
+    "",
+    "삭제되는 항목:",
+    "- 서버 구성(serverGroups)",
+    "- 전황 데이터(boards)",
+    "- 서버관리자 권한(roles/serverAdmins)",
+    adminCount ? `- 서버관리자 메타 ${adminCount}건` : "- 서버관리자 메타",
+    "",
+    "주의:",
+    "- Auth 계정 자체는 브라우저에서 완전 삭제할 수 없어.",
+    "- 권한과 화면 노출만 제거돼.",
+    "",
+    "계속하려면 확인을 눌러줘."
+  ].join("\n"));
+  if (!ok) return;
+
+  try {
+    await db.ref(`${FIREBASE_SERVER_GROUPS_PATH}/${targetKey}`).remove().catch(() => {});
+    await db.ref(`${FIREBASE_PATH}/${targetKey}`).remove().catch(() => {});
+
+    const rolesSnap = await db.ref(`roles/serverAdmins/${targetKey}`).get().catch(() => null);
+    const roleUids = rolesSnap && rolesSnap.exists() ? Object.keys(rolesSnap.val() || {}) : [];
+    for (const uid of roleUids) {
+      await db.ref(`roles/serverAdmins/${targetKey}/${uid}`).remove().catch(() => {});
+    }
+
+    const metaSnap = await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${targetKey}`).get().catch(() => null);
+    const metaUids = metaSnap && metaSnap.exists() ? Object.keys(metaSnap.val() || {}) : [];
+    for (const uid of metaUids) {
+      await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${targetKey}/${uid}`).remove().catch(() => {});
+    }
+
+    delete serverGroupsMap[targetServer];
+
+    const remainingServers = Object.keys(serverGroupsMap).map(normalizeServerId).filter(Boolean).sort();
+    if (!remainingServers.length) {
+      currentServer = "#0000";
+      currentServerGroup = defaultServerGroup("#0000");
+      serverGroupsMap = {};
+    } else {
+      currentServer = remainingServers[0];
+      currentServerGroup = loadServerGroup(currentServer);
+    }
+
+    if (adminRole === "server") {
+      serverAdminSession = null;
+      await signOutAdminAuth();
+      setAdminMode(false);
+    }
+
+    if (db) connectBoardRef();
+    updateServerLabels();
+    renderAll();
+    alert(`${targetServer} 서버를 삭제했어.`);
+  } catch (err) {
+    console.error(err);
+    alert(`서버 삭제 중 오류가 발생했어.\n${err?.message || "알 수 없는 오류"}`);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch] || ch));
+}
+
+async function fetchServerAdminRecords(serverId = currentServer) {
+  const key = normalizeServerId(serverId);
+  if (!key || !db) return [];
+  try {
+    const snapshot = await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${key.replace("#", "")}`).once("value");
+    const data = snapshot.val();
+    if (!data || typeof data !== 'object') return [];
+    return Object.entries(data).map(([uid, value]) => ({
+      uid,
+      name: String(value?.name || '').trim(),
+      email: String(value?.email || '').trim(),
+      createdAt: Number(value?.createdAt || 0),
+      updatedAt: Number(value?.updatedAt || 0),
+      serverId: key
+    })).sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+function renderServerAdminList(records = []) {
+  if (!serverAdminList) return;
+  if (!records.length) {
+    serverAdminList.innerHTML = '<div class="server-admin-empty">등록된 서버관리자가 아직 없어.</div>';
+    return;
+  }
+  serverAdminList.innerHTML = records.map((item) => {
+    const active = selectedServerAdminUid === item.uid ? ' active' : '';
+    const label = escapeHtml(item.name || item.email || item.uid);
+    const email = escapeHtml(item.email || item.uid);
+    return `<button type="button" class="server-admin-item${active}" data-uid="${escapeHtml(item.uid)}"><span><strong>${label}</strong><small>${email}</small></span><span class="muted">선택</span></button>`;
+  }).join('');
+  serverAdminList.querySelectorAll('.server-admin-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedServerAdminUid = btn.dataset.uid || null;
+      renderServerAdminList(records);
+    });
+  });
+}
+
+async function openServerAdminModal() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 서버관리자를 설정할 수 있어.");
+    return;
+  }
+  selectedServerAdminUid = null;
+  if (serverAdminNameInput) serverAdminNameInput.value = "";
+  if (serverAdminIdInput) serverAdminIdInput.value = "";
+  if (serverAdminPinInput) serverAdminPinInput.value = "";
+  const records = await fetchServerAdminRecords(currentServer);
+  renderServerAdminList(records);
+  serverAdminModal?.classList.remove("hidden");
+}
+
+function closeServerAdminModal() {
+  serverAdminModal?.classList.add("hidden");
+}
+
+async function createServerAdminAuthAccount(email, password) {
+  if (!window.firebase) throw new Error('Firebase SDK가 준비되지 않았어.');
+  const appName = `server-admin-create-${Date.now()}`;
+  const tempApp = firebase.initializeApp(FIREBASE_CONFIG, appName);
+  try {
+    const tempAuth = tempApp.auth();
+    const cred = await tempAuth.createUserWithEmailAndPassword(email, password);
+    const user = cred.user;
+    if (!user || !user.uid) throw new Error('관리자 계정 생성에 실패했어.');
+    await tempAuth.signOut().catch(()=>{});
+    return user;
+  } finally {
+    await tempApp.delete().catch(()=>{});
+  }
+}
+
+async function saveServerAdminForCurrentServer() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 서버관리자를 저장할 수 있어.");
+    return;
+  }
+  if (!db) {
+    alert("Firebase 연결이 아직 준비되지 않았어. 새로고침 후 다시 시도해줘.");
+    return;
+  }
+
+  const name = String(serverAdminNameInput?.value || "").trim();
+  const email = String(serverAdminIdInput?.value || "").trim().toLowerCase();
+  const password = String(serverAdminPinInput?.value || "").trim();
+
+  if (!email) {
+    alert("관리자 이메일을 입력해줘.");
+    serverAdminIdInput?.focus();
+    return;
+  }
+  if (!/^.+@.+\..+$/.test(email)) {
+    alert("이메일 형식을 확인해줘.");
+    serverAdminIdInput?.focus();
+    return;
+  }
+  if (password.length < 6) {
+    alert("초기 비밀번호는 6자 이상으로 입력해줘.");
+    serverAdminPinInput?.focus();
+    return;
+  }
+
+  saveServerAdminBtn.disabled = true;
+  const originalText = saveServerAdminBtn.textContent;
+  saveServerAdminBtn.textContent = "생성 중...";
+
+  try {
+    const existingRecords = await fetchServerAdminRecords(currentServer);
+    const duplicatedInCurrentServer = existingRecords.some(item => String(item.email || "").trim().toLowerCase() === email);
+    if (duplicatedInCurrentServer) {
+      alert("이미 현재 서버에 등록된 이메일이야. 다른 이메일을 쓰거나 기존 계정을 삭제한 뒤 다시 시도해줘.");
+      return;
+    }
+
+    const user = await createServerAdminAuthAccount(email, password);
+    const serverKey = getCurrentServerAdminKey();
+    const now = Date.now();
+    const payload = {
+      name,
+      email,
+      uid: user.uid,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: currentAuthUser?.uid || 'super'
+    };
+
+    await db.ref(`roles/serverAdmins/${serverKey}/${user.uid}`).set(true);
+    await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${user.uid}`).set(payload);
+
+    if (serverAdminNameInput) serverAdminNameInput.value = "";
+    if (serverAdminIdInput) serverAdminIdInput.value = "";
+    if (serverAdminPinInput) serverAdminPinInput.value = "";
+
+    selectedServerAdminUid = user.uid;
+    renderServerAdminList(await fetchServerAdminRecords(currentServer));
+    alert(`${currentServer} 서버관리자를 추가했어.`);
+  } catch (err) {
+    console.error(err);
+    const code = String(err?.code || "");
+    if (code === "auth/email-already-in-use") {
+      alert("이미 Firebase Auth에 등록된 이메일이야.\n\nA안 기준에서는 기존 이메일 계정을 재사용 연결할 수 없어서, 다른 이메일로 새 서버관리자를 만들어야 해.");
+    } else if (code === "auth/invalid-email") {
+      alert("이메일 형식이 올바르지 않아.");
+    } else if (code === "auth/weak-password") {
+      alert("비밀번호가 너무 약해. 6자 이상으로 입력해줘.");
+    } else {
+      alert(`서버관리자 생성에 실패했어.\n${err?.message || "알 수 없는 오류"}`);
+    }
+  } finally {
+    saveServerAdminBtn.disabled = false;
+    saveServerAdminBtn.textContent = originalText;
+  }
+}
+
+async function removeServerAdminForCurrentServer() {
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 서버관리자를 삭제할 수 있어.");
+    return;
+  }
+  if (!db) {
+    alert("Firebase 연결이 아직 준비되지 않았어. 새로고침 후 다시 시도해줘.");
+    return;
+  }
+  if (!selectedServerAdminUid) {
+    alert("삭제할 서버관리자를 목록에서 먼저 선택해줘.");
+    return;
+  }
+  const ok = confirm(`${currentServer} 서버에서 선택한 서버관리자 권한을 삭제할까?`);
+  if (!ok) return;
+  const serverKey = getCurrentServerAdminKey();
+  await db.ref(`roles/serverAdmins/${serverKey}/${selectedServerAdminUid}`).remove();
+  await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${selectedServerAdminUid}`).remove();
+  selectedServerAdminUid = null;
+  renderServerAdminList(await fetchServerAdminRecords(currentServer));
+  alert(`${currentServer} 서버관리자 권한을 삭제했어.`);
+}
+
+async function changeSuperAdminPassword() {
+
+  if (!isSuperAdmin()) {
+    alert("슈퍼관리자만 비밀번호를 바꿀 수 있어.");
+    return;
+  }
+  if (!auth || !auth.currentUser) {
+    alert("로그인 상태를 확인할 수 없어. 다시 로그인해줘.");
+    return;
+  }
+  const currentPassword = String(prompt("현재 비밀번호를 입력해줘.") || "").trim();
+  if (!currentPassword) return;
+  const nextPassword = String(prompt("새 비밀번호를 입력해줘.") || "").trim();
+  if (!nextPassword) return;
+  const confirmPassword = String(prompt("새 비밀번호를 한 번 더 입력해줘.") || "").trim();
+  if (nextPassword !== confirmPassword) {
+    alert("새 비밀번호가 서로 다르게 입력됐어.");
+    return;
+  }
+  const credential = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+  await auth.currentUser.reauthenticateWithCredential(credential);
+  await auth.currentUser.updatePassword(nextPassword);
+  alert("슈퍼관리자 비밀번호를 변경했어.");
+}
+
+async function changeCurrentAdminPassword() {
+  if (isSuperAdmin()) {
+    await changeSuperAdminPassword();
+    return;
+  }
+  if (!isServerAdminForCurrentServer()) {
+    alert("현재 서버의 서버관리자만 비밀번호를 바꿀 수 있어.");
+    return;
+  }
+  if (!auth || !auth.currentUser) {
+    alert("로그인 상태를 확인할 수 없어. 다시 로그인해줘.");
+    return;
+  }
+  const currentPassword = String(prompt("현재 비밀번호를 입력해줘.") || "").trim();
+  if (!currentPassword) return;
+  const nextPassword = String(prompt("새 비밀번호를 입력해줘.") || "").trim();
+  if (!nextPassword) return;
+  const confirmPassword = String(prompt("새 비밀번호를 한 번 더 입력해줘.") || "").trim();
+  if (nextPassword !== confirmPassword) {
+    alert("새 비밀번호가 서로 다르게 입력됐어.");
+    return;
+  }
+  const credential = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+  await auth.currentUser.reauthenticateWithCredential(credential);
+  await auth.currentUser.updatePassword(nextPassword);
+  alert("비밀번호를 변경했어.");
+}
+
+async function loginAsServerAdmin() {
+  if (!auth) {
+    alert("Firebase Auth가 아직 준비되지 않았어. 새로고침 후 다시 시도해줘.");
+    return;
+  }
+  const email = String(prompt(`${currentServer} 서버관리자 이메일을 입력해줘.`) || "").trim();
+  if (!email) return;
+  const password = String(prompt("비밀번호를 입력해줘.") || "").trim();
+  if (!password) return;
+  const user = await signInWithRole(email, password, 'server');
+  serverAdminSession = { serverId: currentServer, email: user.email || email, uid: user.uid, name: user.email || email };
+  setAdminMode(true, 'server');
+  attachAdminRoleWatch();
+  alert(`${currentServer} 서버관리자로 로그인했어.`);
+}
+
+toggleAllTerritoriesBtn.addEventListener("click", ()=>{ allTerritoriesVisible = !allTerritoriesVisible; renderAll(); });
+openRescaleBtn.addEventListener("click", ()=>{
+  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 보정을 열 수 있어.");
+  editorPanel.classList.remove("editor-hidden");
+  rescaleWidthInput.focus();
+});
+backupBtn.addEventListener("click", exportBoardBackup);
+resetOverridesBtn.addEventListener("click", ()=>{
+  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 초기화를 실행할 수 있어.");
+  const ok = confirm("저장된 로컬 좌표 override를 삭제하고 기준 좌표로 되돌릴까?\n\n이 작업은 현재 브라우저의 좌표 편집값만 초기화하고, Firebase 상태 데이터는 건드리지 않아.");
+  if (!ok) return;
+  resetCoordinateOverrides();
+  alert("좌표 override를 초기화했어. 이제 기준 좌표로 표시돼.");
+});
+restoreFile.addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const ok = confirm("선택한 JSON으로 현재 상태/좌표/연맹 정보를 덮어쓸까?");
+  if (!ok) {
+    restoreFile.value = "";
+    return;
+  }
+  restoreBoardBackupFromFile(file);
+});
+addAllianceBtn.addEventListener("click", ()=>{
+  if (!canManageCurrentServer()) return alert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있어.");
+  const input = prompt("추가할 연맹 이름을 입력해줘.");
+  if (input === null) return;
+  const name = normalizeAllianceName(input);
+  if (!name) return alert("연맹 이름을 입력해줘.");
+  if (alliances.includes(name)) return alert("이미 있는 연맹이야.");
+  const sideInput = String(prompt(`이 연맹의 진영을 입력해줘.
+1 = 질서
+2 = 복수`, "1") || "").trim();
+  const side = sideInput === "2" ? "revenge" : "order";
+  alliances.push(name);
+  allianceSides[name] = side;
+  saveAllianceSides();
+  saveAlliances();
+  renderAll();
+});
+if (closeServerGroupBtn) closeServerGroupBtn.addEventListener("click", closeServerGroupModal);
+if (saveServerGroupBtn) saveServerGroupBtn.addEventListener("click", saveServerGroupFromModal);
+if (serverGroupModal) serverGroupModal.addEventListener("click", (e)=>{ if (e.target === serverGroupModal) closeServerGroupModal(); });
+if (closeServerAdminBtn) closeServerAdminBtn.addEventListener("click", closeServerAdminModal);
+if (saveServerAdminBtn) saveServerAdminBtn.addEventListener("click", () => { saveServerAdminForCurrentServer().catch(err => { console.error(err); alert(err?.message || "서버관리자 생성에 실패했어."); }); });
+if (deleteServerAdminBtn) deleteServerAdminBtn.addEventListener("click", removeServerAdminForCurrentServer);
+if (serverAdminModal) serverAdminModal.addEventListener("click", (e)=>{ if (e.target === serverAdminModal) closeServerAdminModal(); });
+if (closeOwnerChangeBtn) closeOwnerChangeBtn.addEventListener("click", closeOwnerChangeModal);
+if (ownerChangeModal) ownerChangeModal.addEventListener("click", (e)=>{ if (e.target === ownerChangeModal) closeOwnerChangeModal(); });
+
+
+function closeOwnerChangeModal() {
+  if (ownerChangeModal) ownerChangeModal.classList.add("hidden");
+}
+
+function openOwnerChangeModal(zoneId = selectedZoneId) {
+  if (!canManageCurrentServer()) {
+    alert("현재 서버 관리자 또는 슈퍼관리자만 점령을 바꿀 수 있어.");
+    return;
+  }
+  const zone = zoneMap[zoneId];
+  if (!zone || !ownerChangeModal || !ownerChangeButtons || !ownerChangeDesc) return;
+  selectedZoneId = zoneId;
+  const currentOwner = state[zoneId]?.owner || null;
+  ownerChangeDesc.textContent = `${zone.name}의 점령 연맹을 선택해줘.`;
+  ownerChangeButtons.innerHTML = "";
+  [null, ...alliances].forEach((owner) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "assign-owner-btn" + ((currentOwner || null) === owner ? " active" : "");
+    const sideLabel = owner ? getAllianceSideLabel(owner) : null;
+    btn.innerHTML = owner ? `${dotHtml(owner)}${owner}${sideLabel ? ` (${sideLabel})` : ""}` : `${dotHtml(null)}미점령`;
+    btn.addEventListener("click", () => {
+      setZoneOwner(zoneId, owner);
+      closeOwnerChangeModal();
+    });
+    ownerChangeButtons.appendChild(btn);
+  });
+  ownerChangeModal.classList.remove("hidden");
+}
+
+function renderInfluenceOverlay() {
+  if (influenceLayer) influenceLayer.innerHTML = "";
+}
+
+
+
+async function openAdminModeFlow(){
+  if (adminMode) {
+    await forceAdminLogout();
+    return;
+  }
+  const mode = String(prompt("관리자 로그인 방식을 선택해줘.\n1 = 슈퍼관리자\n2 = 서버관리자", "2") || "").trim();
+  if (!mode) return;
+  if (mode === "1") {
+    if (!auth) return alert("Firebase Auth가 아직 준비되지 않았어. 새로고침 후 다시 시도해줘.");
+    const email = String(prompt("슈퍼관리자 이메일을 입력해줘.") || "").trim();
+    if (!email) return;
+    const password = String(prompt("비밀번호를 입력해줘.") || "").trim();
+    if (!password) return;
+    const user = await signInWithRole(email, password, 'super');
+    serverAdminSession = null;
+    setAdminMode(true, "super");
+    attachAdminRoleWatch();
+    alert(`슈퍼관리자로 로그인했어. (${user.email || email})`);
+    return;
+  }
+  if (mode === "2") {
+    await loginAsServerAdmin();
+    return;
+  }
+  alert("1 또는 2만 입력해줘.");
+}
+
+window.__openAdminMode = () => {
+  openAdminModeFlow().catch((err) => {
+    console.error(err);
+    alert("관리자 모드를 열지 못했어. 콘솔 오류를 확인해줘.");
+  });
+};
+if (adminModeBtn) adminModeBtn.addEventListener("click", (event)=>{
+  event.preventDefault();
+  event.stopPropagation();
+  window.__openAdminMode();
+});
+changeServerBtn?.addEventListener("click", configureServerGroup);
+
+bulkAllianceSideBtn?.addEventListener("click", () => {
+  openAllianceSideBulkModal();
+});
+saveAllianceSideBulkBtn?.addEventListener("click", async () => {
+  await saveAllianceSideBulk();
+});
+closeAllianceSideBulkBtn?.addEventListener("click", () => {
+  closeAllianceSideBulkModal();
+});
+allianceSideBulkModal?.addEventListener("click", (event) => {
+  if (event.target === allianceSideBulkModal) closeAllianceSideBulkModal();
+});
+toggleEditorPanelBtn?.addEventListener("click", () => {
+  editorPanelCollapsed = !editorPanelCollapsed;
+  updateEditorPanelCollapseUI();
+});
+
+changeSuperPasswordBtn?.addEventListener("click", () => { changeSuperAdminPassword().catch(err => { console.error(err); alert("슈퍼 비밀번호를 변경하지 못했어."); }); });
+changeCurrentAdminPasswordBtn?.addEventListener("click", () => { changeCurrentAdminPassword().catch(err => { console.error(err); alert("비밀번호를 변경하지 못했어."); }); });
+manageServerAdminBtn?.addEventListener("click", () => { openServerAdminModal().catch(err => { console.error(err); alert("서버관리자 설정창을 열지 못했어."); }); });
+deleteServerBtn?.addEventListener("click", () => { deleteCurrentServer().catch(err => { console.error(err); alert("서버를 삭제하지 못했어."); }); });
+removeServerAdminBtn?.addEventListener("click", removeServerAdminForCurrentServer);
+function handleEditorAddPoint(event) {
+  if (!adminMode || !editMode || !selectedZoneId) return;
+  if (draggingPointIndex !== null) return;
+  event.preventDefault();
+  if (event.type === "touchend") lastTouchAddAt = Date.now();
+  if (event.type === "click" && Date.now() - lastTouchAddAt < 500) return;
+  editPoints.push(getSvgPointFromEvent(event));
+  renderEditorLayer();
+}
+
+editorLayer.addEventListener("click", handleEditorAddPoint);
+editorLayer.addEventListener("touchend", handleEditorAddPoint, { passive: false });
+toggleEditBtn.addEventListener("click", ()=>{ if (editMode) stopEditMode(); else beginEditMode(); });
+savePolygonBtn.addEventListener("click", saveCurrentPolygon);
+undoPointBtn.addEventListener("click", ()=>{ editPoints.pop(); renderEditorLayer(); });
+clearPointsBtn.addEventListener("click", ()=>{ editPoints = []; renderEditorLayer(); });
+copyZoneBtn.addEventListener("click", copyCurrentZoneJson);
+exportZonePolygonsBtn.addEventListener("click", exportZonePolygons);
+runRescaleBtn.addEventListener("click", runRescaleFlow);
+openShiftYBtn.addEventListener("click", openShiftYModalFlow);
+applyShiftYBtn.addEventListener("click", applyShiftYFlow);
+closeShiftYBtn.addEventListener("click", closeShiftYModalFlow);
+shiftYModal?.addEventListener("click", (event) => {
+  if (event.target === shiftYModal) closeShiftYModalFlow();
+});
+shiftYInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") applyShiftYFlow();
+  if (event.key === "Escape") closeShiftYModalFlow();
+});
+
+clearLegacyServerGroupLocalCache();
+saveCurrentServer();
+updateServerLabels();
+setAdminMode(false);
+initFirebase();
+syncMapShellSize();
+updateAdminStatusUI();
+updateEditorPanelCollapseUI();
+renderAll();
+
+
+function sanitizeServerGroups(map){
+  const out = {};
+  Object.keys(map || {}).forEach(k=>{
+    const safeKey = String(k).replace('#','');
+    out[safeKey] = map[k];
+  });
+  return out;
+}
+
+</script>
+</body>
+</html>
