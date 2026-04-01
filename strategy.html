@@ -1399,14 +1399,12 @@
     <div>
       <h1 class="title">다크워 시즌맵 전략맵</h1>
       <p class="subtitle">다크워 시즌맵 전략맵 운영 페이지</p>
-      <div class="server-badge" id="currentServerBadge">전략 서버: #0000</div>
-      <div class="server-matchup" id="currentServerMatchup">#0000 (#0000, #0000 VS #0000, #0000)</div>
       <div class="admin-status" id="adminStatusText">상태: 전략맵 (로컬 전용)</div>
       <div class="button-row section-note">
         <button id="changeCurrentAdminPasswordBtn" style="display:none;">비밀번호 변경</button>
         <button id="addAllianceBtn">연맹 추가</button>
+        <button id="helpBtn">사용법</button>
       </div>
-      <div class="server-list" id="serverList"></div>
     </div>
 
     <section class="section" id="strategyEditSection">
@@ -1554,13 +1552,6 @@
         <div>• 뷰어는 승인 후 조회만 가능</div>
         <div>• 방 제목 수정/삭제는 생성자만 가능</div>
         <div>• 링크 공유 후 새로고침 없이 같이 볼 수 있어</div>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>영지 / 목록</h2>
-      <div class="button-row">
-        <button id="toggleAllTerritoriesBtn" class="btn-full">전체 영지 숨기기</button>
       </div>
     </section>
 
@@ -1730,6 +1721,33 @@
 </div>
 
 
+
+<div id="helpModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(540px, calc(100vw - 32px));">
+    <h3>사용법</h3>
+    <div style="max-height:65vh; overflow-y:auto; padding-right:4px;">
+      <p class="modal-desc"><strong>🗺️ 지도</strong>
+영지를 클릭하면 해당 영지의 정보(유형, 점령 연맹, 세력치 등)가 좌측 패널에 표시됩니다.</p>
+      <p class="modal-desc"><strong>✏️ 전략 도구</strong>
+편집 도구에서 영지 / 선택 / 핀 / 선 / 메모 / 지우기 도구를 선택하여 지도에 전략 표시를 남길 수 있습니다.
+색상을 선택한 뒤 지도에 그리거나 클릭하여 배치합니다.</p>
+      <p class="modal-desc"><strong>💾 저장 / 불러오기</strong>
+방을 만들거나 입장하여 전략을 실시간으로 공유할 수 있습니다.
+내보내기로 JSON 파일을 저장하고, 가져오기로 다시 불러올 수 있습니다.</p>
+      <p class="modal-desc"><strong>🔍 레벨 필터</strong>
+버튼을 눌러 특정 레벨 영지만 지도에 표시할 수 있습니다.
+전체를 선택하면 모든 영지가 표시됩니다.</p>
+      <p class="modal-desc"><strong>🏷️ 연맹 필터</strong>
+전체 / 미점령 / 점령 또는 특정 연맹 버튼을 눌러 해당 조건의 영지만 볼 수 있습니다.</p>
+      <p class="modal-desc"><strong>📊 기본 통계</strong>
+질서/복수 세력치 합계와 연맹별 순위를 확인할 수 있습니다.
+상단 바는 질서(파랑) vs 복수(빨강) 세력 비율을 시각적으로 보여줍니다.</p>
+    </div>
+    <div class="button-row section-note" style="margin-top:12px;">
+      <button id="closeHelpBtn">닫기</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-backdrop hidden" id="strategyCreateRoomModal" aria-hidden="true">
   <div class="modal-panel" style="width:min(92vw,420px);">
@@ -3252,6 +3270,22 @@ function nowString() {
   return new Date().toLocaleString("ko-KR", { hour12: false });
 }
 
+const LEVEL_POWER = { 1: 20, 2: 40, 3: 60, 4: 120, 5: 240, 6: 400, 7: 1200 };
+const ZONE_POWER_TABLE = {
+  north_gate_1: 60,  north_gate_2: 60,  north_gate_3: 400, north_gate_4: 400, north_gate_5: 60,  north_gate_6: 60,
+  south_gate_1: 60,  south_gate_2: 60,  south_gate_3: 400, south_gate_4: 400, south_gate_5: 60,  south_gate_6: 60,
+  north_entry_1: 120, north_entry_2: 120, north_entry_3: 120, north_entry_4: 240, north_entry_5: 400, north_entry_6: 120, north_entry_7: 120,
+  mid_entry_1: 400,  mid_entry_2: 240,  mid_entry_3: 120,  mid_entry_4: 120,
+  south_entry_1: 120,
+};
+function getZonePower(zone) {
+  if (zone.id in ZONE_POWER_TABLE) return ZONE_POWER_TABLE[zone.id];
+  if (zone.type === "core") return 1200;
+  const matched = zone.name.match(/^(\d+)구역/);
+  if (matched) return LEVEL_POWER[Number(matched[1])] || 0;
+  return 0;
+}
+
 function deriveGroupKey(zone) {
   if (zone.type === "gate") return "gate";
   if (zone.type === "entry") return "entry";
@@ -3627,9 +3661,10 @@ function getScoreSummary() {
     const owner = getDisplayEntry(zone.id)?.owner;
     if (!owner) return;
     const side = getAllianceSide(owner);
-    if (side === "order") order += 1;
-    else if (side === "revenge") revenge += 1;
-    else unassigned += 1;
+    const power = getZonePower(zone);
+    if (side === "order") order += power;
+    else if (side === "revenge") revenge += power;
+    else unassigned += power;
   });
   return { order, revenge, unassigned };
 }
@@ -3648,7 +3683,7 @@ function getAllianceRankings() {
   Object.values(zoneMap).forEach((zone) => {
     const owner = getDisplayEntry(zone.id)?.owner;
     if (!owner) return;
-    totals.set(owner, (totals.get(owner) || 0) + 1);
+    totals.set(owner, (totals.get(owner) || 0) + getZonePower(zone));
   });
   return [...totals.entries()]
     .map(([name, score]) => ({ name, score, side: getAllianceSide(name), color: ownerColor(name) || '#94a3b8' }))
@@ -4727,6 +4762,7 @@ function isVisibleZone(zone) {
   const entry = getDisplayEntry(zone.id);
   if (activeLevelFilter !== "all" && deriveGroupKey(zone) !== activeLevelFilter) return false;
   if (activeOwnerFilter === "vacant") return !entry.owner;
+  if (activeOwnerFilter === "occupied") return !!entry.owner;
   if (activeOwnerFilter !== "all" && entry.owner !== activeOwnerFilter) return false;
   return true;
 }
@@ -4759,12 +4795,12 @@ function renderLevelFilters() {
 
 function renderOwnerFilters() {
   ownerFilterBar.innerHTML = "";
-  const items = [{key:"all",label:"전체"},{key:"vacant",label:"미점령"},...alliances.map(name=>({key:name,label:name}))];
+  const items = [{key:"all",label:"전체"},{key:"vacant",label:"미점령"},{key:"occupied",label:"점령"},...alliances.map(name=>({key:name,label:name}))];
   for (const item of items) {
     const btn = document.createElement("button");
     btn.className = "owner-filter-btn" + (activeOwnerFilter === item.key ? " active" : "");
-    const sideLabel = item.key === "all" || item.key === "vacant" ? "" : (getAllianceSideLabel(item.label) ? ` (${getAllianceSideLabel(item.label)})` : "");
-    btn.innerHTML = (item.key === "all" || item.key === "vacant") ? item.label : `${dotHtml(item.label)}${item.label}${sideLabel}`;
+    const sideLabel = item.key === "all" || item.key === "vacant" || item.key === "occupied" ? "" : (getAllianceSideLabel(item.label) ? ` (${getAllianceSideLabel(item.label)})` : "");
+    btn.innerHTML = (item.key === "all" || item.key === "vacant" || item.key === "occupied") ? item.label : `${dotHtml(item.label)}${item.label}${sideLabel}`;
     btn.addEventListener("click", () => { activeOwnerFilter = item.key; renderAll(); });
     ownerFilterBar.appendChild(btn);
   }
@@ -4852,7 +4888,7 @@ function renderMap() {
     const ownerTagText = entry.owner ? `[${String(entry.owner).trim()}]` : "";
     if (ownerTag.textContent !== ownerTagText) ownerTag.textContent = ownerTagText;
   }
-  toggleAllTerritoriesBtn.textContent = allTerritoriesVisible ? "전체 영지 숨기기" : "전체 영지 표시";
+  if (toggleAllTerritoriesBtn) toggleAllTerritoriesBtn.textContent = allTerritoriesVisible ? "전체 영지 숨기기" : "전체 영지 표시";
 }
 
 function showTooltip(zone, evt) {
@@ -4897,8 +4933,10 @@ function buildAllianceRowsHtml(visibleZones) {
   return alliances.map((name) => {
     const sideLabel = getAllianceSideLabel(name);
     const label = sideLabel ? `${name} (${sideLabel})` : name;
-    const occupiedCount = visibleZones.filter((zone) => state[zone.id].owner === name).length;
-    return `<div class="row"><span>${label}</span><strong>${occupiedCount}</strong></div>`;
+    const power = visibleZones
+      .filter((zone) => getDisplayEntry(zone.id)?.owner === name)
+      .reduce((sum, zone) => sum + getZonePower(zone), 0);
+    return `<div class="row"><span>${label}</span><strong>${power.toLocaleString()}</strong></div>`;
   }).join("");
 }
 
@@ -4908,7 +4946,7 @@ function buildRankingHtml(rankings, maxAllianceScore) {
   }
   return rankings.map((item, index) => {
     const percent = maxAllianceScore ? Math.max(8, (item.score / maxAllianceScore) * 100) : 0;
-    const sideLabel = item.side === 'order' ? '질서' : item.side === 'revenge' ? '복수' : '미지정';
+    const sideLabel = item.side === 'order' ? '질서' : item.side === 'revenge' ? '복수' : '';
     return `
       <div class="ranking-item">
         <div class="ranking-rank">${index + 1}</div>
@@ -4916,7 +4954,7 @@ function buildRankingHtml(rankings, maxAllianceScore) {
           <div class="ranking-name">${dotHtml(item.name)}${item.name}<span class="ranking-side">${sideLabel}</span></div>
           <div class="ranking-bar"><span style="width:${percent}%; background:${item.color};"></span></div>
         </div>
-        <div class="ranking-score">${item.score}</div>
+        <div class="ranking-score">${item.score.toLocaleString()}</div>
       </div>`;
   }).join("");
 }
@@ -4937,9 +4975,8 @@ function renderStats() {
     <div class="scoreboard-wrap">
       <div class="scorebar-card">
         <div class="scorebar-head">
-          <span class="score-side-badge"><span class="score-side-dot order"></span>질서 <strong>${score.order}</strong></span>
-          <span class="score-side-badge"><span class="dot vacant"></span>미지정 <strong>${score.unassigned}</strong></span>
-          <span class="score-side-badge"><span class="score-side-dot revenge"></span>복수 <strong>${score.revenge}</strong></span>
+          <span class="score-side-badge"><span class="score-side-dot order"></span>질서 <strong>${score.order.toLocaleString()}</strong></span>
+          <span class="score-side-badge"><span class="score-side-dot revenge"></span>복수 <strong>${score.revenge.toLocaleString()}</strong></span>
         </div>
         <div class="scorebar-track">
           <div class="scorebar-order" style="width:${score.orderPercent}%;"></div>
@@ -4949,21 +4986,15 @@ function renderStats() {
         </div>
         <div class="scorebar-labels">
           <span>질서 ${Math.round(score.orderPercent)}%</span>
-          <span>${score.total ? `총 ${score.total}점 · 미지정 ${score.unassigned}` : '아직 점령 없음'}</span>
+          <span>${score.total ? `총 ${score.total.toLocaleString()}pt` : '아직 점령 없음'}</span>
           <span>복수 ${Math.round(score.revengePercent)}%</span>
         </div>
       </div>
       <div class="ranking-card">
-        <div class="ranking-title"><span>연맹 순위</span><span class="muted">점령 영지 수</span></div>
+        <div class="ranking-title"><span>연맹 순위</span><span class="muted">세력치</span></div>
         <div class="ranking-list">${rankingHtml}</div>
       </div>
-    </div>
-    <div class="row"><span>질서 서버</span><strong>${orderServers}</strong></div>
-    <div class="row"><span>복수 서버</span><strong>${revengeServers}</strong></div>
-    <div class="row"><span>표시 영지</span><strong>${visibleZones.length}</strong></div>
-    <div class="row"><span>점령</span><strong>${occupied}</strong></div>
-    <div class="row"><span>미점령</span><strong>${vacant}</strong></div>
-    ${allianceRows || '<div class="row"><span>연맹</span><strong>0</strong></div>'}`;
+    </div>`;
 }
 
 function getVisibleZoneGroups(visibleZones) {
@@ -5470,7 +5501,7 @@ async function loginAsServerAdmin() {
   alert(`${currentServer} 서버관리자로 로그인했어.`);
 }
 
-toggleAllTerritoriesBtn.addEventListener("click", ()=>{ allTerritoriesVisible = !allTerritoriesVisible; renderAll(); });
+toggleAllTerritoriesBtn?.addEventListener("click", ()=>{ allTerritoriesVisible = !allTerritoriesVisible; renderAll(); });
 openRescaleBtn.addEventListener("click", ()=>{
   if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 보정을 열 수 있어.");
   editorPanel.classList.remove("editor-hidden");
@@ -5494,6 +5525,16 @@ restoreFile.addEventListener("change", (event) => {
   }
   restoreBoardBackupFromFile(file);
 });
+document.getElementById("helpBtn").addEventListener("click", () => {
+  document.getElementById("helpModal").classList.remove("hidden");
+});
+document.getElementById("closeHelpBtn").addEventListener("click", () => {
+  document.getElementById("helpModal").classList.add("hidden");
+});
+document.getElementById("helpModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
+});
+
 addAllianceBtn.addEventListener("click", ()=>{
   if (!canManageCurrentServer()) return alert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있어.");
   const input = prompt("추가할 연맹 이름을 입력해줘.");
@@ -8530,7 +8571,7 @@ ${err?.message || '알 수 없는 오류'}`);
 
       actions.append(openBtn, linkBtn);
 
-      if(item.isOwner){
+      if(item.isOwner || isSuperAdmin()){
         const renameBtn = document.createElement('button');
         renameBtn.type = 'button';
         renameBtn.textContent = '제목 수정';
@@ -8599,7 +8640,7 @@ ${err?.message || '알 수 없는 오류'}`);
           passwordEnabled: !!meta.passwordEnabled,
           memberRole
         };
-      }).filter(item => item.isOwner || item.isMember)
+      }).filter(item => isSuperAdmin() || item.isOwner || item.isMember)
         .sort((a,b) => b.updatedAt - a.updatedAt);
       renderRoomList(items);
       return items;

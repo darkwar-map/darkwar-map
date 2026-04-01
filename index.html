@@ -1049,22 +1049,13 @@
     </div>
     <div>
       <h1 class="title">다크워 시즌맵 전황판</h1>
-      <div class="server-badge" id="currentServerBadge">현재 서버: #0000</div>
-      <div class="server-matchup" id="currentServerMatchup">#0000 (#0000, #0000 VS #0000, #0000)</div>
       <div class="admin-status" id="adminStatusText">권한: 보기 모드</div>
       <div class="button-row section-note">
         <button id="changeCurrentAdminPasswordBtn" style="display:none;">비밀번호 변경</button>
         <button id="addAllianceBtn">연맹 추가</button>
+        <button id="helpBtn">사용법</button>
       </div>
-      <div class="server-list" id="serverList"></div>
     </div>
-
-    <section class="section">
-      <h2>영지 / 목록</h2>
-      <div class="button-row">
-        <button id="toggleAllTerritoriesBtn" class="btn-full">전체 영지 숨기기</button>
-      </div>
-    </section>
 
     <input id="restoreFile" type="file" accept=".json,application/json" style="display:none;" />
 
@@ -1210,6 +1201,29 @@
   </div>
 </div>
 
+
+<div id="helpModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(540px, calc(100vw - 32px));">
+    <h3>사용법</h3>
+    <div style="max-height:65vh; overflow-y:auto; padding-right:4px;">
+      <p class="modal-desc"><strong>🗺️ 지도</strong>
+영지를 클릭하면 해당 영지의 정보(유형, 점령 연맹, 세력치 등)가 좌측 패널에 표시됩니다.</p>
+      <p class="modal-desc"><strong>🔍 레벨 필터</strong>
+버튼을 눌러 특정 레벨 영지만 지도에 표시할 수 있습니다.
+전체를 선택하면 모든 영지가 표시됩니다.</p>
+      <p class="modal-desc"><strong>🏷️ 연맹 필터</strong>
+전체 / 미점령 / 점령 또는 특정 연맹 버튼을 눌러 해당 조건의 영지만 볼 수 있습니다.</p>
+      <p class="modal-desc"><strong>📊 현황 통계</strong>
+질서/복수 세력치 합계와 연맹별 순위를 확인할 수 있습니다.
+상단 바는 질서(파랑) vs 복수(빨강) 세력 비율을 시각적으로 보여줍니다.</p>
+      <p class="modal-desc"><strong>➕ 연맹 추가</strong>
+연맹 이름과 진영(질서/복수)을 입력하면 필터와 순위에 반영됩니다.</p>
+    </div>
+    <div class="button-row section-note" style="margin-top:12px;">
+      <button id="closeHelpBtn">닫기</button>
+    </div>
+  </div>
+</div>
 
 <div class="editor-floating editor-hidden" id="editorPanel">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><h3 style="margin:0;">좌표 편집</h3><button id="toggleEditorPanelBtn" type="button" style="padding:6px 10px;font-size:12px;border-radius:10px;">숨기기</button></div>
@@ -4081,6 +4095,7 @@ function isVisibleZone(zone) {
   const entry = state[zone.id];
   if (activeLevelFilter !== "all" && deriveGroupKey(zone) !== activeLevelFilter) return false;
   if (activeOwnerFilter === "vacant") return !entry.owner;
+  if (activeOwnerFilter === "occupied") return !!entry.owner;
   if (activeOwnerFilter !== "all" && entry.owner !== activeOwnerFilter) return false;
   return true;
 }
@@ -4113,12 +4128,12 @@ function renderLevelFilters() {
 
 function renderOwnerFilters() {
   ownerFilterBar.innerHTML = "";
-  const items = [{key:"all",label:"전체"},{key:"vacant",label:"미점령"},...alliances.map(name=>({key:name,label:name}))];
+  const items = [{key:"all",label:"전체"},{key:"vacant",label:"미점령"},{key:"occupied",label:"점령"},...alliances.map(name=>({key:name,label:name}))];
   for (const item of items) {
     const btn = document.createElement("button");
     btn.className = "owner-filter-btn" + (activeOwnerFilter === item.key ? " active" : "");
-    const sideLabel = item.key === "all" || item.key === "vacant" ? "" : (getAllianceSideLabel(item.label) ? ` (${getAllianceSideLabel(item.label)})` : "");
-    btn.innerHTML = (item.key === "all" || item.key === "vacant") ? item.label : `${dotHtml(item.label)}${item.label}${sideLabel}`;
+    const sideLabel = item.key === "all" || item.key === "vacant" || item.key === "occupied" ? "" : (getAllianceSideLabel(item.label) ? ` (${getAllianceSideLabel(item.label)})` : "");
+    btn.innerHTML = (item.key === "all" || item.key === "vacant" || item.key === "occupied") ? item.label : `${dotHtml(item.label)}${item.label}${sideLabel}`;
     btn.addEventListener("click", () => { activeOwnerFilter = item.key; renderAll(); });
     ownerFilterBar.appendChild(btn);
   }
@@ -4219,7 +4234,7 @@ function renderMap() {
     const ownerTagText = entry.owner ? `[${String(entry.owner).trim()}]` : "";
     if (ownerTag.textContent !== ownerTagText) ownerTag.textContent = ownerTagText;
   }
-  toggleAllTerritoriesBtn.textContent = allTerritoriesVisible ? "전체 영지 숨기기" : "전체 영지 표시";
+  if (toggleAllTerritoriesBtn) toggleAllTerritoriesBtn.textContent = allTerritoriesVisible ? "전체 영지 숨기기" : "전체 영지 표시";
 }
 
 function showTooltip(zone, evt) {
@@ -4281,7 +4296,7 @@ function renderStats() {
   const rankingHtml = rankings.length
     ? rankings.map((item, index) => {
         const percent = maxAllianceScore ? Math.max(8, (item.score / maxAllianceScore) * 100) : 0;
-        const sideLabel = item.side === 'order' ? '질서' : item.side === 'revenge' ? '복수' : '미지정';
+        const sideLabel = item.side === 'order' ? '질서' : item.side === 'revenge' ? '복수' : '';
         return `
           <div class="ranking-item">
             <div class="ranking-rank">${index + 1}</div>
@@ -4299,7 +4314,6 @@ function renderStats() {
       <div class="scorebar-card">
         <div class="scorebar-head">
           <span class="score-side-badge"><span class="score-side-dot order"></span>질서 <strong>${score.order.toLocaleString()}</strong></span>
-          <span class="score-side-badge"><span class="dot vacant"></span>미지정 <strong>${score.unassigned.toLocaleString()}</strong></span>
           <span class="score-side-badge"><span class="score-side-dot revenge"></span>복수 <strong>${score.revenge.toLocaleString()}</strong></span>
         </div>
         <div class="scorebar-track">
@@ -4310,7 +4324,7 @@ function renderStats() {
         </div>
         <div class="scorebar-labels">
           <span>질서 ${Math.round(score.orderPercent)}%</span>
-          <span>${score.total ? `총 ${score.total.toLocaleString()}pt · 미지정 ${score.unassigned.toLocaleString()}` : '아직 점령 없음'}</span>
+          <span>${score.total ? `총 ${score.total.toLocaleString()}pt` : '아직 점령 없음'}</span>
           <span>복수 ${Math.round(score.revengePercent)}%</span>
         </div>
       </div>
@@ -4318,13 +4332,7 @@ function renderStats() {
         <div class="ranking-title"><span>연맹 순위</span><span class="muted">세력치</span></div>
         <div class="ranking-list">${rankingHtml}</div>
       </div>
-    </div>
-    <div class="row"><span>질서 서버</span><strong>${orderServers}</strong></div>
-    <div class="row"><span>복수 서버</span><strong>${revengeServers}</strong></div>
-    <div class="row"><span>표시 영지</span><strong>${visibleZones.length}</strong></div>
-    <div class="row"><span>점령</span><strong>${occupied}</strong></div>
-    <div class="row"><span>미점령</span><strong>${vacant}</strong></div>
-    ${allianceRows || '<div class="row"><span>연맹</span><strong>0</strong></div>'}`;
+    </div>`;
 }
 
 function renderList() {
@@ -4796,7 +4804,7 @@ async function loginAsServerAdmin() {
   alert(`${currentServer} 서버관리자로 로그인했어.`);
 }
 
-toggleAllTerritoriesBtn.addEventListener("click", ()=>{ allTerritoriesVisible = !allTerritoriesVisible; renderAll(); });
+toggleAllTerritoriesBtn?.addEventListener("click", ()=>{ allTerritoriesVisible = !allTerritoriesVisible; renderAll(); });
 openRescaleBtn.addEventListener("click", ()=>{
   if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 보정을 열 수 있어.");
   editorPanel.classList.remove("editor-hidden");
@@ -4820,6 +4828,16 @@ restoreFile.addEventListener("change", (event) => {
   }
   restoreBoardBackupFromFile(file);
 });
+document.getElementById("helpBtn").addEventListener("click", () => {
+  document.getElementById("helpModal").classList.remove("hidden");
+});
+document.getElementById("closeHelpBtn").addEventListener("click", () => {
+  document.getElementById("helpModal").classList.add("hidden");
+});
+document.getElementById("helpModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
+});
+
 addAllianceBtn.addEventListener("click", ()=>{
   if (!canManageCurrentServer()) return alert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있어.");
   const input = prompt("추가할 연맹 이름을 입력해줘.");
