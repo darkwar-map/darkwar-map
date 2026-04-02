@@ -91,6 +91,60 @@
     color: var(--muted);
     line-height: 1.4;
   }
+  .req-reject-reason {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(239,68,68,0.10);
+    color: #fca5a5;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+  .req-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    margin-left: 5px;
+    vertical-align: middle;
+    line-height: 1;
+  }
+  .viewer-count-box {
+    display: none;
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    font-size: 0.82rem;
+    line-height: 1.7;
+  }
+  .viewer-count-box .vc-title {
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 2px;
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+  }
+  .viewer-count-box .vc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .viewer-count-box .vc-total {
+    border-top: 1px solid rgba(255,255,255,0.10);
+    margin-top: 4px;
+    padding-top: 4px;
+    font-weight: 700;
+  }
+  .viewer-count-box .vc-num { color: #60a5fa; font-weight: 700; }
   .server-list {
     display: flex;
     flex-wrap: wrap;
@@ -788,10 +842,21 @@
 
 
 .server-admin-list{display:flex;flex-direction:column;gap:8px;max-height:180px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px;background:rgba(255,255,255,.04)}
-.server-admin-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid transparent;cursor:pointer}
-.server-admin-item.active{border-color:rgba(93,211,255,.7);background:rgba(93,211,255,.12)}
+.server-admin-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid transparent}
 .server-admin-item small{display:block;color:var(--muted);margin-top:2px}
+.server-admin-del-btn{flex-shrink:0;padding:4px 10px;font-size:0.8rem;border-radius:7px;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);cursor:pointer}
+.server-admin-del-btn:hover{background:rgba(239,68,68,.3)}
 .server-admin-empty{color:var(--muted);font-size:13px;padding:8px 4px}
+.server-matchup-info{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);margin-bottom:6px;font-size:0.82rem}
+.matchup-server{font-weight:700;font-size:0.88rem;color:var(--text);letter-spacing:.5px}
+.matchup-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.matchup-tag{padding:2px 7px;border-radius:6px;font-size:0.75rem;font-weight:700;flex-shrink:0}
+.matchup-tag.order{background:rgba(56,189,248,.2);color:#7dd3fc;border:1px solid rgba(56,189,248,.3)}
+.matchup-tag.revenge{background:rgba(248,113,113,.2);color:#fca5a5;border:1px solid rgba(248,113,113,.3)}
+.matchup-server-id{padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.08);font-size:0.78rem}
+.approve-guide-steps{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.guide-step{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(134,239,172,.07);border:1px solid rgba(134,239,172,.2);font-size:0.9rem;line-height:1.5}
+.step-num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(134,239,172,.3);color:#86efac;font-weight:700;font-size:0.8rem;display:flex;align-items:center;justify-content:center}
 
 .scoreboard-wrap{display:grid;gap:10px;margin-bottom:8px}
 .scorebar-card{padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04)}
@@ -1162,6 +1227,38 @@
     font: inherit;
   }
 
+  /* 이벤트 팝업 */
+  .event-open-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 13px; border-radius: 999px;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: #fff; font-weight: 700; font-size: 0.82rem;
+    border: none; cursor: pointer;
+    box-shadow: 0 2px 10px rgba(245,158,11,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .event-open-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,158,11,0.6); }
+  .event-banner-img { width: 100%; border-radius: 12px; margin-bottom: 14px; object-fit: cover; display: block; }
+  .event-countdown { text-align: center; margin: 8px 0 14px; }
+  .event-countdown .cd-digits {
+    font-size: 2rem; font-weight: 800; letter-spacing: 0.06em;
+    color: var(--gate); font-variant-numeric: tabular-nums;
+  }
+  .event-countdown .cd-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+  .event-ended-msg { text-align: center; padding: 20px 0; color: var(--muted); font-size: 0.95rem; }
+  .event-ranking-list { margin-bottom: 12px; }
+  .event-rank-header { display: flex; justify-content: space-between; padding: 5px 10px; font-size: 0.75rem; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .event-rank-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; }
+  .event-rank-row:hover { background: rgba(255,255,255,0.04); }
+  .event-rank-num { width: 22px; text-align: center; font-weight: 800; color: var(--muted); font-size: 0.8rem; flex-shrink: 0; }
+  .event-rank-num.top1 { color: #fbbf24; }
+  .event-rank-num.top2 { color: #94a3b8; }
+  .event-rank-num.top3 { color: #b45309; }
+  .event-rank-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .event-rank-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .event-rank-score { font-weight: 700; color: var(--gate); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .event-rank-empty { text-align: center; padding: 16px 0; color: var(--muted); font-size: 0.85rem; }
+
 </style>
 </head>
 <body>
@@ -1173,12 +1270,14 @@
     </div>
     <div>
       <h1 class="title">다크워 시즌맵 전황판</h1>
+      <div id="serverMatchupInfo" class="server-matchup-info" style="display:none;"></div>
       <div class="admin-status" id="adminStatusText">권한: 보기 모드</div>
       <div class="button-row section-note">
         <button id="changeCurrentAdminPasswordBtn" style="display:none;">비밀번호 변경</button>
         <button id="addAllianceBtn">연맹 추가</button>
         <button id="helpBtn">사용법</button>
         <button id="requestServerAdminBtn">서버 관리자 신청</button>
+        <button id="eventModalBtn" class="event-open-btn">🎉 사막 지역 정벌</button>
       </div>
       <div class="server-list" id="serverList"></div>
     </div>
@@ -1288,8 +1387,12 @@
       <input id="serverAdminIdInput" type="email" placeholder="예: admin9224@dw.com" />
     </div>
     <div class="modal-form-row">
-      <label for="serverAdminPinInput">초기 비밀번호</label>
-      <input id="serverAdminPinInput" type="password" placeholder="6자 이상 입력" />
+      <label for="serverAdminUidInput">UID <small style="color:var(--muted)">(Firebase Console → Authentication에서 복사, 입력 시 이메일/비밀번호 불필요)</small></label>
+      <input id="serverAdminUidInput" type="text" placeholder="UID 직접 입력 (선택)" />
+    </div>
+    <div class="modal-form-row">
+      <label for="serverAdminPinInput">초기 비밀번호 <small style="color:var(--muted)">(UID 없고 신규 계정인 경우만 필요)</small></label>
+      <input id="serverAdminPinInput" type="password" placeholder="신규 계정 생성 시 6자 이상 입력" />
     </div>
     <div class="modal-form-row">
       <label>현재 등록된 서버관리자</label>
@@ -1297,7 +1400,6 @@
     </div>
     <div class="button-row section-note">
       <button id="saveServerAdminBtn">서버관리자 추가</button>
-      <button id="deleteServerAdminBtn">선택 권한 삭제</button>
       <button id="closeServerAdminBtn">닫기</button>
     </div>
   </div>
@@ -1387,6 +1489,36 @@
   </div>
 </div>
 
+<div id="rejectNoticeModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(480px, calc(100vw - 32px));">
+    <h3>서버 관리자 신청 결과</h3>
+    <p style="color:#fca5a5;margin:8px 0 4px;">❌ 신청이 거절되었습니다.</p>
+    <div id="rejectNoticeReason" style="padding:10px 12px;border-radius:10px;background:rgba(239,68,68,0.10);color:#fca5a5;font-size:0.9rem;margin-top:8px;line-height:1.6;"></div>
+    <p style="color:var(--muted);font-size:0.82rem;margin-top:10px;">다시 신청하시려면 [서버 관리자 신청] 버튼을 이용해주세요.</p>
+    <div class="button-row section-note" style="margin-top:12px;">
+      <button id="closeRejectNoticeBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<div id="approveNoticeModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(520px, calc(100vw - 32px));">
+    <h3>✅ 서버 관리자 승인 완료!</h3>
+    <p class="modal-desc" style="color:#86efac;">관리자 권한이 승인되었습니다. 아래 순서에 따라 로그인하고 시작해 주세요.</p>
+    <div class="approve-guide-steps">
+      <div class="guide-step"><span class="step-num">1</span><span>화면 <strong>우측 상단 [관리자 모드]</strong> 버튼을 클릭합니다.</span></div>
+      <div class="guide-step"><span class="step-num">2</span><span>모드 선택창에서 <strong>2</strong> 를 입력하고 확인을 누릅니다. (서버 관리자 로그인)</span></div>
+      <div class="guide-step"><span class="step-num">3</span><span>신청한 <strong>이메일</strong>을 입력합니다.</span></div>
+      <div class="guide-step"><span class="step-num">4</span><span>신청한 <strong>비밀번호</strong>를 입력합니다.</span></div>
+      <div class="guide-step"><span class="step-num">5</span><span>로그인 후 좌측 메뉴 <strong>[연맹 추가]</strong> 버튼으로 연맹을 등록합니다.</span></div>
+      <div class="guide-step"><span class="step-num">6</span><span>지도 위 <strong>영지를 클릭</strong>하면 점령 연맹과 세력 정보를 변경할 수 있습니다.</span></div>
+    </div>
+    <div class="button-row section-note" style="margin-top:16px;">
+      <button id="closeApproveNoticeBtn">확인했습니다</button>
+    </div>
+  </div>
+</div>
+
 <div id="helpModal" class="modal-backdrop hidden">
   <div class="modal-card" style="width:min(540px, calc(100vw - 32px));">
     <h3>사용법</h3>
@@ -1439,9 +1571,16 @@
     <button id="manageServerAdminBtn">서버관리자 설정</button>
     <button id="bulkAllianceSideBtn">진영 일괄 지정</button>
     <button id="deleteServerBtn">현재 서버 삭제</button>
-    <button id="adminReqPanelBtn" style="background:rgba(245,158,11,0.18);border-color:rgba(251,191,36,0.45);color:#fbbf24;">📋 신청 목록</button>
+    <button id="adminReqPanelBtn" style="background:rgba(245,158,11,0.18);border-color:rgba(251,191,36,0.45);color:#fbbf24;">📋 신청 목록<span id="adminReqBadge" class="req-badge" style="display:none;"></span></button>
   </div>
   <div id="superAdminTools">
+    <div class="viewer-count-box" id="viewerCountBox">
+      <div class="vc-title">실시간 접속자</div>
+      <div class="vc-row"><span>슈퍼관리자</span><span class="vc-num" id="vcSuper">0</span></div>
+      <div class="vc-row"><span>서버관리자</span><span class="vc-num" id="vcServer">0</span></div>
+      <div class="vc-row"><span>일반 뷰어</span><span class="vc-num" id="vcViewer">0</span></div>
+      <div class="vc-row vc-total"><span>합계</span><span class="vc-num" id="vcTotal">0</span></div>
+    </div>
     <div class="controls">
       <button id="toggleEditBtn">편집 시작</button>
       <button id="savePolygonBtn">현재 저장</button>
@@ -1474,6 +1613,23 @@
     <div class="danger-note">⚠️ 좌표 보정은 현재 보이는 모든 영지 좌표를 한 번에 변환해. 보정 전에 JSON 백업을 먼저 받아두는 걸 권장해.</div>
   </div>
 </div>
+</div>
+
+<!-- 이벤트 팝업 모달 -->
+<div id="eventModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(480px,calc(100vw - 32px)); max-height:85vh; overflow-y:auto;">
+    <h3 style="margin:0 0 12px">🎉 사막 지역 정벌</h3>
+    <img class="event-banner-img" src="event.png" alt="이벤트 배너" />
+    <div id="eventRankingList" class="event-ranking-list"></div>
+    <div id="eventCountdownArea" class="event-countdown">
+      <div class="cd-digits" id="cdDisplay">00:00:00:00</div>
+      <div class="cd-label">일 &nbsp;·&nbsp; 시 &nbsp;·&nbsp; 분 &nbsp;·&nbsp; 초</div>
+    </div>
+    <div id="eventEndedArea" class="event-ended-msg hidden">이벤트가 종료되었습니다.</div>
+    <div class="button-row section-note" style="margin-top:14px">
+      <button id="closeEventModalBtn">닫기</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
@@ -2703,6 +2859,7 @@ const FIREBASE_SERVER_ADMINS_PATH = `${FIREBASE_META_PATH}/serverAdmins`;
 const FIREBASE_SUPERADMIN_PATH = `${FIREBASE_META_PATH}/superAdmin`;
 const FIREBASE_SERVER_GROUPS_PATH = `${FIREBASE_META_PATH}/serverGroups`;
 const FIREBASE_ADMIN_REQUESTS_PATH = `${FIREBASE_META_PATH}/adminRequests`;
+const FIREBASE_PRESENCE_PATH = `${FIREBASE_META_PATH}/presence`;
 const OWNER_COLORS = [
   "#ef4444", "#3b82f6", "#f59e0b", "#22c55e", "#a855f7",
   "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16"
@@ -2727,6 +2884,9 @@ let allTerritoriesVisible = true;
 let adminMode = false;
 let adminRole = "viewer";
 let serverAdminSession = null;
+let myPresenceRef = null;
+let lastPresenceData = {};
+const presenceSessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
 let editMode = false;
 let editPoints = [];
 let draggingPointIndex = null;
@@ -2790,6 +2950,7 @@ const closeServerGroupBtn = document.getElementById("closeServerGroupBtn");
 const serverAdminModal = document.getElementById("serverAdminModal");
 const serverAdminNameInput = document.getElementById("serverAdminNameInput");
 const serverAdminIdInput = document.getElementById("serverAdminIdInput");
+const serverAdminUidInput = document.getElementById("serverAdminUidInput");
 const serverAdminPinInput = document.getElementById("serverAdminPinInput");
 const serverAdminList = document.getElementById("serverAdminList");
 const saveServerAdminBtn = document.getElementById("saveServerAdminBtn");
@@ -2804,6 +2965,12 @@ const deleteServerBtn = document.getElementById("deleteServerBtn");
 const removeServerAdminBtn = document.getElementById("removeServerAdminBtn");
 const openShiftYBtn = document.getElementById("openShiftYBtn");
 const shiftYModal = document.getElementById("shiftYModal");
+const eventModal = document.getElementById("eventModal");
+const eventModalBtn = document.getElementById("eventModalBtn");
+const closeEventModalBtn = document.getElementById("closeEventModalBtn");
+const eventCountdownArea = document.getElementById("eventCountdownArea");
+const eventEndedArea = document.getElementById("eventEndedArea");
+const cdDisplay = document.getElementById("cdDisplay");
 const shiftYInput = document.getElementById("shiftYInput");
 const applyShiftYBtn = document.getElementById("applyShiftYBtn");
 const closeShiftYBtn = document.getElementById("closeShiftYBtn");
@@ -2997,6 +3164,22 @@ function updateServerLabels() {
   const enemyText = enemies.length ? enemies.join(", ") : "-";
   if (currentServerMatchup) currentServerMatchup.textContent = `${currentServer} (${allyText} VS ${enemyText})`;
   if (editorCurrentServer) editorCurrentServer.textContent = currentServer;
+  const matchupEl = document.getElementById("serverMatchupInfo");
+  if (matchupEl) {
+    const hasConfig = currentServer && currentServer !== "#0000";
+    if (!hasConfig) {
+      matchupEl.style.display = "none";
+    } else {
+      const allyTags = allies.length
+        ? allies.map(s => `<span class="matchup-server-id">${escapeHtml(s)}</span>`).join(" ")
+        : '<span style="color:var(--muted)">-</span>';
+      const enemyTags = enemies.length
+        ? enemies.map(s => `<span class="matchup-server-id">${escapeHtml(s)}</span>`).join(" ")
+        : '<span style="color:var(--muted)">-</span>';
+      matchupEl.innerHTML = `<div class="matchup-server">🏰 ${escapeHtml(currentServer)}</div><div class="matchup-row"><span class="matchup-tag order">질서</span>${allyTags}</div><div class="matchup-row"><span class="matchup-tag revenge">복수</span>${enemyTags}</div>`;
+      matchupEl.style.display = "flex";
+    }
+  }
   renderServerList();
 }
 
@@ -3040,6 +3223,15 @@ function updateAdminStatusUI() {
   if (superAdminTools) superAdminTools.style.display = isSuperAdmin() ? "block" : "none";
   const requestServerAdminBtn = document.getElementById("requestServerAdminBtn");
   if (requestServerAdminBtn) requestServerAdminBtn.style.display = !adminMode ? "inline-flex" : "none";
+  renderViewerCount();
+  // 버튼에 현재 서버 관리자 수 표시
+  if (isSuperAdmin() && manageServerAdminBtn) {
+    fetchServerAdminRecords(currentServer).then(records => {
+      manageServerAdminBtn.textContent = records.length > 0
+        ? `서버관리자 설정 (${records.length}명)`
+        : "서버관리자 설정";
+    }).catch(() => {});
+  }
 }
 
 
@@ -3828,6 +4020,8 @@ function initFirebase() {
   try {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
+    checkMyRejectedRequest();
+    checkMyApprovedRequest();
     auth = firebase.auth();
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
     auth.onAuthStateChanged((user) => {
@@ -3836,9 +4030,103 @@ function initFirebase() {
     });
     connectServerGroupRef();
     connectBoardRef();
+    initPresence();
   } catch (err) {
     console.error(err);
   }
+}
+
+function checkMyRejectedRequest() {
+  const email = localStorage.getItem("darkwar-req-email");
+  if (!email || !db) return;
+  db.ref(FIREBASE_ADMIN_REQUESTS_PATH).get().then(snap => {
+    if (!snap.exists()) return;
+    let found = null;
+    snap.forEach(child => {
+      const d = child.val();
+      if (
+        String(d.email || "").toLowerCase() === email.toLowerCase() &&
+        d.status === "rejected" && d.rejectReason &&
+        !localStorage.getItem(`darkwar-seen-reject-${child.key}`)
+      ) {
+        found = { id: child.key, ...d };
+      }
+    });
+    if (!found) return;
+    const modal = document.getElementById("rejectNoticeModal");
+    const reasonEl = document.getElementById("rejectNoticeReason");
+    if (!modal || !reasonEl) return;
+    reasonEl.textContent = found.rejectReason;
+    modal.classList.remove("hidden");
+    document.getElementById("closeRejectNoticeBtn").onclick = () => {
+      localStorage.setItem(`darkwar-seen-reject-${found.id}`, "1");
+      modal.classList.add("hidden");
+    };
+  }).catch(() => {});
+}
+
+function checkMyApprovedRequest() {
+  const email = localStorage.getItem("darkwar-req-email");
+  if (!email || !db) return;
+  db.ref(FIREBASE_ADMIN_REQUESTS_PATH).get().then(snap => {
+    if (!snap.exists()) return;
+    let found = null;
+    snap.forEach(child => {
+      const d = child.val();
+      if (
+        String(d.email || "").toLowerCase() === email.toLowerCase() &&
+        d.status === "approved" &&
+        !localStorage.getItem(`darkwar-seen-approved-${child.key}`)
+      ) {
+        found = { id: child.key, ...d };
+      }
+    });
+    if (!found) return;
+    const modal = document.getElementById("approveNoticeModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    document.getElementById("closeApproveNoticeBtn").onclick = () => {
+      localStorage.setItem(`darkwar-seen-approved-${found.id}`, "1");
+      modal.classList.add("hidden");
+    };
+  }).catch(() => {});
+}
+
+function initPresence() {
+  if (!db) return;
+  db.ref('.info/connected').on('value', (snap) => {
+    if (!snap.val()) return;
+    myPresenceRef = db.ref(`${FIREBASE_PRESENCE_PATH}/${presenceSessionId}`);
+    myPresenceRef.onDisconnect().remove();
+    myPresenceRef.set({ role: adminRole, ts: firebase.database.ServerValue.TIMESTAMP });
+  });
+  db.ref(FIREBASE_PRESENCE_PATH).on('value', (snap) => {
+    lastPresenceData = snap.val() || {};
+    renderViewerCount();
+  });
+}
+
+function updateMyPresenceRole(role) {
+  if (!myPresenceRef) return;
+  myPresenceRef.update({ role: role || 'viewer' }).catch(() => {});
+}
+
+function renderViewerCount() {
+  const box = document.getElementById('viewerCountBox');
+  if (!box) return;
+  const isAdmin = adminMode && isSuperAdmin();
+  box.style.display = isAdmin ? 'block' : 'none';
+  if (!isAdmin) return;
+  let superCnt = 0, serverCnt = 0, viewerCnt = 0;
+  Object.values(lastPresenceData).forEach(v => {
+    if (v?.role === 'super') superCnt++;
+    else if (v?.role === 'server') serverCnt++;
+    else viewerCnt++;
+  });
+  document.getElementById('vcSuper').textContent = superCnt;
+  document.getElementById('vcServer').textContent = serverCnt;
+  document.getElementById('vcViewer').textContent = viewerCnt;
+  document.getElementById('vcTotal').textContent = superCnt + serverCnt + viewerCnt;
 }
 
 function switchServer(nextServer) {
@@ -3929,6 +4217,8 @@ function setAdminMode(next, role = next ? adminRole : "viewer") {
     clearAdminSessionLocal();
     detachAdminRoleWatch();
   }
+  updateMyPresenceRole(adminRole);
+  if (isSuperAdmin()) { attachAdminReqBadgeListener(); } else { detachAdminReqBadgeListener(); }
   updateAdminStatusUI();
   renderAll();
 }
@@ -4782,21 +5072,24 @@ async function fetchServerAdminRecords(serverId = currentServer) {
 
 function renderServerAdminList(records = []) {
   if (!serverAdminList) return;
+  // 버튼 텍스트에 관리자 수 반영
+  if (manageServerAdminBtn) {
+    manageServerAdminBtn.textContent = records.length > 0
+      ? `서버관리자 설정 (${records.length}명)`
+      : "서버관리자 설정";
+  }
   if (!records.length) {
     serverAdminList.innerHTML = '<div class="server-admin-empty">등록된 서버관리자가 아직 없습니다.</div>';
     return;
   }
   serverAdminList.innerHTML = records.map((item) => {
-    const active = selectedServerAdminUid === item.uid ? ' active' : '';
     const label = escapeHtml(item.name || item.email || item.uid);
     const email = escapeHtml(item.email || item.uid);
-    return `<button type="button" class="server-admin-item${active}" data-uid="${escapeHtml(item.uid)}"><span><strong>${label}</strong><small>${email}</small></span><span class="muted">선택</span></button>`;
+    return `<div class="server-admin-item" data-uid="${escapeHtml(item.uid)}"><span><strong>${label}</strong><small>${email}</small></span><button type="button" class="server-admin-del-btn">삭제</button></div>`;
   }).join('');
-  serverAdminList.querySelectorAll('.server-admin-item').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      selectedServerAdminUid = btn.dataset.uid || null;
-      renderServerAdminList(records);
-    });
+  serverAdminList.querySelectorAll('.server-admin-del-btn').forEach((btn) => {
+    const uid = btn.closest('.server-admin-item')?.dataset.uid;
+    btn.addEventListener('click', () => removeServerAdminByUid(uid, records));
   });
 }
 
@@ -4808,6 +5101,7 @@ async function openServerAdminModal() {
   selectedServerAdminUid = null;
   if (serverAdminNameInput) serverAdminNameInput.value = "";
   if (serverAdminIdInput) serverAdminIdInput.value = "";
+  if (serverAdminUidInput) serverAdminUidInput.value = "";
   if (serverAdminPinInput) serverAdminPinInput.value = "";
   const records = await fetchServerAdminRecords(currentServer);
   renderServerAdminList(records);
@@ -4834,6 +5128,40 @@ async function createServerAdminAuthAccount(email, password) {
   }
 }
 
+async function signInWithTempApp(email, password) {
+  if (!window.firebase) throw new Error('Firebase SDK가 준비되지 않았습니다.');
+  const appName = `server-admin-signin-${Date.now()}`;
+  const tempApp = firebase.initializeApp(FIREBASE_CONFIG, appName);
+  try {
+    const tempAuth = tempApp.auth();
+    const cred = await tempAuth.signInWithEmailAndPassword(email, password);
+    const user = cred.user;
+    await tempAuth.signOut().catch(() => {});
+    return user;
+  } finally {
+    await tempApp.delete().catch(() => {});
+  }
+}
+
+async function findExistingAdminUidByEmail(email) {
+  if (!db || !email) return null;
+  try {
+    const snap = await db.ref(FIREBASE_SERVER_ADMINS_PATH).get();
+    if (!snap.exists()) return null;
+    let found = null;
+    snap.forEach(serverSnap => {
+      if (found) return;
+      serverSnap.forEach(adminSnap => {
+        const d = adminSnap.val();
+        if (String(d?.email || "").toLowerCase() === email.toLowerCase()) {
+          found = { uid: adminSnap.key, ...d };
+        }
+      });
+    });
+    return found;
+  } catch { return null; }
+}
+
 async function saveServerAdminForCurrentServer() {
   if (!isSuperAdmin()) {
     alert("슈퍼관리자만 서버관리자를 저장할 수 있습니다.");
@@ -4846,6 +5174,7 @@ async function saveServerAdminForCurrentServer() {
 
   const name = String(serverAdminNameInput?.value || "").trim();
   const email = String(serverAdminIdInput?.value || "").trim().toLowerCase();
+  const manualUid = String(serverAdminUidInput?.value || "").trim();
   const password = String(serverAdminPinInput?.value || "").trim();
 
   if (!email) {
@@ -4858,15 +5187,10 @@ async function saveServerAdminForCurrentServer() {
     serverAdminIdInput?.focus();
     return;
   }
-  if (password.length < 6) {
-    alert("초기 비밀번호는 6자 이상으로 입력해 주세요.");
-    serverAdminPinInput?.focus();
-    return;
-  }
 
   saveServerAdminBtn.disabled = true;
   const originalText = saveServerAdminBtn.textContent;
-  saveServerAdminBtn.textContent = "생성 중...";
+  saveServerAdminBtn.textContent = "확인 중...";
 
   try {
     const existingRecords = await fetchServerAdminRecords(currentServer);
@@ -4876,33 +5200,77 @@ async function saveServerAdminForCurrentServer() {
       return;
     }
 
-    const user = await createServerAdminAuthAccount(email, password);
+    // 1단계: UID 직접 입력 또는 DB 메타데이터에서 기존 계정 탐색
+    const existingAdmin = manualUid ? null : await findExistingAdminUidByEmail(email);
+    let uid;
+    let isExisting = false;
+
+    if (manualUid) {
+      // UID 직접 입력 → 바로 사용 (Firebase Auth 조회 불필요)
+      uid = manualUid;
+      isExisting = true;
+    } else if (existingAdmin) {
+      // DB에 기록된 기존 계정 → 비밀번호 불필요
+      uid = existingAdmin.uid;
+      isExisting = true;
+    } else {
+      // DB에 없음 → 비밀번호로 Firebase Auth 직접 확인
+      if (password.length < 6) {
+        alert("이메일을 확인할 수 없습니다.\n이미 가입된 계정이라면 비밀번호를 입력하면 자동으로 연결됩니다.\n신규 계정이라면 비밀번호를 6자 이상 입력해 주세요.");
+        return;
+      }
+      saveServerAdminBtn.textContent = "계정 확인 중...";
+      try {
+        // 기존 Firebase Auth 계정으로 로그인 시도 → UID 획득
+        const existingUser = await signInWithTempApp(email, password);
+        uid = existingUser.uid;
+        isExisting = true;
+      } catch (signInErr) {
+        const signInCode = String(signInErr?.code || "");
+        if (signInCode === "auth/user-not-found" || signInCode === "auth/invalid-credential") {
+          // Firebase Auth에도 없음 → 신규 생성
+          saveServerAdminBtn.textContent = "생성 중...";
+          const newUser = await createServerAdminAuthAccount(email, password);
+          uid = newUser.uid;
+          isExisting = false;
+        } else if (signInCode === "auth/wrong-password") {
+          alert("비밀번호가 올바르지 않습니다.\n기존 계정의 비밀번호를 확인해 주세요.");
+          return;
+        } else {
+          throw signInErr;
+        }
+      }
+    }
+
     const serverKey = getCurrentServerAdminKey();
     const now = Date.now();
     const payload = {
       name,
       email,
-      uid: user.uid,
+      uid,
       createdAt: now,
       updatedAt: now,
       updatedBy: currentAuthUser?.uid || 'super'
     };
 
-    await db.ref(`roles/serverAdmins/${serverKey}/${user.uid}`).set(true);
-    await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${user.uid}`).set(payload);
+    await db.ref(`roles/serverAdmins/${serverKey}/${uid}`).set(true);
+    await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${uid}`).set(payload);
 
     if (serverAdminNameInput) serverAdminNameInput.value = "";
     if (serverAdminIdInput) serverAdminIdInput.value = "";
+    if (serverAdminUidInput) serverAdminUidInput.value = "";
     if (serverAdminPinInput) serverAdminPinInput.value = "";
 
-    selectedServerAdminUid = user.uid;
+    selectedServerAdminUid = uid;
     renderServerAdminList(await fetchServerAdminRecords(currentServer));
-    alert(`${currentServer} 서버관리자를 추가했습니다.`);
+    alert(isExisting
+      ? `${currentServer} 서버에 기존 계정(${email})을 관리자로 임명했습니다.`
+      : `${currentServer} 서버관리자를 추가했습니다.`);
   } catch (err) {
     console.error(err);
     const code = String(err?.code || "");
     if (code === "auth/email-already-in-use") {
-      alert("이미 Firebase Auth에 등록된 이메일입니다.\n다른 이메일로 새 서버관리자를 만들어 주세요.");
+      alert("이미 Firebase Auth에 등록된 이메일입니다.\n비밀번호를 입력하면 기존 계정으로 연결할 수 있습니다.");
     } else if (code === "auth/invalid-email") {
       alert("이메일 형식이 올바르지 않습니다.");
     } else if (code === "auth/weak-password") {
@@ -4937,6 +5305,19 @@ async function removeServerAdminForCurrentServer() {
   selectedServerAdminUid = null;
   renderServerAdminList(await fetchServerAdminRecords(currentServer));
   alert(`${currentServer} 서버관리자 권한을 삭제했습니다.`);
+}
+
+async function removeServerAdminByUid(uid, records) {
+  if (!isSuperAdmin()) { alert("슈퍼관리자만 서버관리자를 삭제할 수 있습니다."); return; }
+  if (!db || !uid) return;
+  const target = (records || []).find(r => r.uid === uid);
+  const label = target?.name || target?.email || uid;
+  if (!confirm(`${currentServer} 서버에서 [${label}] 서버관리자 권한을 삭제할까요?`)) return;
+  const serverKey = getCurrentServerAdminKey();
+  await db.ref(`roles/serverAdmins/${serverKey}/${uid}`).remove();
+  await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${uid}`).remove();
+  renderServerAdminList(await fetchServerAdminRecords(currentServer));
+  alert(`[${label}] 서버관리자 권한을 삭제했습니다.`);
 }
 
 async function changeSuperAdminPassword() {
@@ -5042,6 +5423,63 @@ document.getElementById("helpModal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
 });
 
+// 이벤트 팝업
+const EVENT_END = new Date('2026-04-16T02:00:00Z'); // 4월 16일 11:00 KST
+let cdTimer = null;
+
+function renderEventRanking() {
+  const container = document.getElementById("eventRankingList");
+  if (!alliances || !alliances.length) {
+    container.innerHTML = '<div class="event-rank-empty">등록된 연맹이 없습니다.</div>';
+    return;
+  }
+  const ranked = alliances.map(name => {
+    const score = Object.values(zoneMap)
+      .filter(zone => state[zone.id]?.owner === name)
+      .reduce((sum, zone) => sum + getZonePower(zone), 0);
+    return { name, score, color: ownerColor(name) || '#94a3b8' };
+  }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ko'));
+
+  const numClass = i => i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+  container.innerHTML =
+    `<div class="event-rank-header"><span>순위 · 연맹</span><span>세력치</span></div>` +
+    ranked.map((item, i) => `
+      <div class="event-rank-row">
+        <span class="event-rank-num ${numClass(i)}">${i + 1}</span>
+        <span class="event-rank-dot" style="background:${item.color}"></span>
+        <span class="event-rank-name">${item.name}</span>
+        <span class="event-rank-score">${item.score.toLocaleString()}</span>
+      </div>`).join('');
+}
+
+function updateEventCountdown() {
+  const diff = EVENT_END - new Date();
+  if (diff <= 0) {
+    eventCountdownArea.classList.add("hidden");
+    eventEndedArea.classList.remove("hidden");
+    clearInterval(cdTimer);
+    return;
+  }
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  cdDisplay.textContent = `${String(d).padStart(2,'0')}:${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function openEventModal() {
+  renderEventRanking();
+  eventModal.classList.remove("hidden");
+  updateEventCountdown();
+  cdTimer = setInterval(updateEventCountdown, 1000);
+}
+function closeEventModal() {
+  eventModal.classList.add("hidden");
+  clearInterval(cdTimer);
+}
+eventModalBtn.addEventListener("click", openEventModal);
+closeEventModalBtn.addEventListener("click", closeEventModal);
+eventModal.addEventListener("click", e => { if (e.target === eventModal) closeEventModal(); });
+
 addAllianceBtn.addEventListener("click", ()=>{
   if (!canManageCurrentServer()) return alert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있습니다.");
   const input = prompt("추가할 연맹 이름을 입력해 주세요.");
@@ -5064,7 +5502,6 @@ if (saveServerGroupBtn) saveServerGroupBtn.addEventListener("click", saveServerG
 if (serverGroupModal) serverGroupModal.addEventListener("click", (e)=>{ if (e.target === serverGroupModal) closeServerGroupModal(); });
 if (closeServerAdminBtn) closeServerAdminBtn.addEventListener("click", closeServerAdminModal);
 if (saveServerAdminBtn) saveServerAdminBtn.addEventListener("click", () => { saveServerAdminForCurrentServer().catch(err => { console.error(err); alert(err?.message || "서버관리자 생성에 실패했습니다."); }); });
-if (deleteServerAdminBtn) deleteServerAdminBtn.addEventListener("click", removeServerAdminForCurrentServer);
 if (serverAdminModal) serverAdminModal.addEventListener("click", (e)=>{ if (e.target === serverAdminModal) closeServerAdminModal(); });
 if (closeOwnerChangeBtn) closeOwnerChangeBtn.addEventListener("click", closeOwnerChangeModal);
 if (ownerChangeModal) ownerChangeModal.addEventListener("click", (e)=>{ if (e.target === ownerChangeModal) closeOwnerChangeModal(); });
@@ -5201,6 +5638,7 @@ shiftYInput?.addEventListener("keydown", (event) => {
 // ── 서버 관리자 신청 기능 ─────────────────────────────────────────────
 let adminRequestListFilter = "all";
 let adminRequestsWatchRef = null;
+let adminReqBadgeRef = null;
 let adminRequestsAllItems = [];
 
 function openAdminRequestModal() {
@@ -5278,6 +5716,7 @@ async function submitAdminRequest() {
       status: "pending",
       requestedAt: Date.now()
     });
+    localStorage.setItem("darkwar-req-email", email);
     alert("서버 관리자 신청이 완료되었습니다. 슈퍼관리자가 검토 후 처리해 드립니다!");
     closeAdminRequestModal();
   } catch (err) {
@@ -5293,6 +5732,27 @@ async function loadAndRenderAdminRequests() {
   // 새로고침 버튼용: 리스너 재연결
   if (adminRequestsWatchRef) { adminRequestsWatchRef.off(); adminRequestsWatchRef = null; }
   attachAdminRequestsListener();
+}
+
+function attachAdminReqBadgeListener() {
+  if (!db || !isSuperAdmin()) return;
+  if (adminReqBadgeRef) adminReqBadgeRef.off();
+  adminReqBadgeRef = db.ref(FIREBASE_ADMIN_REQUESTS_PATH);
+  adminReqBadgeRef.on('value', snap => {
+    let pending = 0;
+    if (snap.exists()) snap.forEach(child => { if (child.val()?.status === 'pending') pending++; });
+    const badge = document.getElementById('adminReqBadge');
+    if (badge) {
+      badge.textContent = pending > 0 ? String(pending) : '';
+      badge.style.display = pending > 0 ? 'inline-flex' : 'none';
+    }
+  });
+}
+
+function detachAdminReqBadgeListener() {
+  if (adminReqBadgeRef) { adminReqBadgeRef.off(); adminReqBadgeRef = null; }
+  const badge = document.getElementById('adminReqBadge');
+  if (badge) badge.style.display = 'none';
 }
 
 function attachAdminRequestsListener() {
@@ -5346,6 +5806,7 @@ function renderAdminRequestList(items) {
         추가할 서버: <strong>${e(item.targetServer || "-")}</strong><br>
         질서: ${e(item.orderServer1 || "-")} / ${e(item.orderServer2 || "-")} &nbsp;|&nbsp; 복수: ${e(item.revengeServer1 || "-")} / ${e(item.revengeServer2 || "-")}
       </div>
+      ${status === "rejected" && item.rejectReason ? `<div class="req-reject-reason">거절 사유: ${e(item.rejectReason)}</div>` : ""}
       ${status === "pending" ? `<div class="req-actions">
         <button class="req-approve-btn">승인 + 계정 생성</button>
         <button class="req-reject-btn">거절</button>
@@ -5353,7 +5814,11 @@ function renderAdminRequestList(items) {
       </div>` : `<div class="req-actions"><button class="req-delete-btn">삭제</button></div>`}
     `;
     div.querySelector(".req-approve-btn")?.addEventListener("click", () => updateAdminRequestStatus(item.id, "approved").catch(err => { console.error(err); alert(err?.message || "처리에 실패했습니다."); }));
-    div.querySelector(".req-reject-btn")?.addEventListener("click", () => updateAdminRequestStatus(item.id, "rejected").catch(err => { console.error(err); alert(err?.message || "처리에 실패했습니다."); }));
+    div.querySelector(".req-reject-btn")?.addEventListener("click", () => {
+      const reason = prompt("거절 사유를 입력하세요.\n(신청자가 다음 접속 시 확인합니다)", "");
+      if (reason === null) return;
+      updateAdminRequestStatus(item.id, "rejected", reason.trim()).catch(err => { console.error(err); alert(err?.message || "처리에 실패했습니다."); });
+    });
     div.querySelector(".req-delete-btn")?.addEventListener("click", () => deleteAdminRequest(item.id));
     listEl.appendChild(div);
   });
@@ -5363,7 +5828,7 @@ function escapeHtml(str) {
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-async function updateAdminRequestStatus(id, status) {
+async function updateAdminRequestStatus(id, status, rejectReason = "") {
   if (!db || !isSuperAdmin()) return;
   // 승인 시: Firebase Auth 계정 자동 생성 + 서버관리자 권한 등록
   if (status === "approved") {
@@ -5391,7 +5856,15 @@ async function updateAdminRequestStatus(id, status) {
           };
           await db.ref(`roles/serverAdmins/${serverKey}/${user.uid}`).set(true);
           await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${user.uid}`).set(payload);
-          alert(`✅ ${targetServer} 서버관리자 계정을 생성하고 권한을 등록했습니다!\n닉네임: ${item.nickname}\n이메일: ${email}`);
+          // 서버 구성 자동 저장 (이미 등록된 서버이면 덮어쓰지 않음)
+          const normalizeKey = (s) => { const m = String(s||"").trim().match(/^#?(\d{4})$/); return m ? m[1] : null; };
+          const allies = [item.orderServer1, item.orderServer2].map(normalizeKey).filter(Boolean);
+          const enemies = [item.revengeServer1, item.revengeServer2].map(normalizeKey).filter(Boolean);
+          const existingGroupSnap = await db.ref(`${FIREBASE_SERVER_GROUPS_PATH}/${serverKey}`).get();
+          if (!existingGroupSnap.exists()) {
+            await db.ref(`${FIREBASE_SERVER_GROUPS_PATH}/${serverKey}`).set({ current: serverKey, allies, enemies });
+          }
+          alert(`✅ ${targetServer} 서버관리자 계정을 생성하고 권한을 등록했습니다!\n닉네임: ${item.nickname}\n이메일: ${email}\n서버 구성(질서/복수)도 함께 저장되었습니다.`);
         } catch (authErr) {
           console.error(authErr);
           const code = String(authErr?.code || "");
@@ -5409,7 +5882,12 @@ async function updateAdminRequestStatus(id, status) {
     }
   }
   try {
-    await db.ref(`${FIREBASE_ADMIN_REQUESTS_PATH}/${id}/status`).set(status);
+    const update = { status };
+    if (status === "rejected") {
+      update.rejectedAt = Date.now();
+      if (rejectReason) update.rejectReason = rejectReason;
+    }
+    await db.ref(`${FIREBASE_ADMIN_REQUESTS_PATH}/${id}`).update(update);
   } catch (err) {
     alert("상태 변경에 실패했습니다.\n" + (err?.message || ""));
   }
@@ -5478,5 +5956,67 @@ function sanitizeServerGroups(map){
 }
 
 </script>
+
+<!-- 후원 플로팅 버튼 -->
+<style>
+  .donate-fab {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow: hidden;
+    max-width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    box-shadow: 0 4px 20px rgba(245,158,11,0.45), 0 2px 8px rgba(0,0,0,0.4);
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    color: #fff;
+    font-family: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    transition: max-width 0.35s cubic-bezier(0.4,0,0.2,1),
+                box-shadow 0.2s, transform 0.2s;
+    white-space: nowrap;
+    padding: 0 13px 0 13px;
+  }
+  .donate-fab:hover {
+    max-width: 180px;
+    box-shadow: 0 6px 28px rgba(245,158,11,0.6), 0 2px 12px rgba(0,0,0,0.5);
+    transform: translateY(-2px);
+  }
+  .donate-fab .fab-icon {
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .donate-fab .fab-label {
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    transition: max-width 0.35s cubic-bezier(0.4,0,0.2,1),
+                opacity 0.25s, margin-left 0.3s;
+    pointer-events: none;
+  }
+  .donate-fab:hover .fab-label {
+    max-width: 120px;
+    opacity: 1;
+    margin-left: 7px;
+  }
+  @media (max-width: 600px) {
+    .donate-fab { bottom: 18px; right: 16px; }
+  }
+</style>
+<a class="donate-fab" href="https://acoffee.shop/d/8e784f97-6408-4af3-8255-8de01ac0dda6" target="_blank" rel="noopener noreferrer" title="개발자에게 커피 한 잔 후원하기">
+  <span class="fab-icon">☕</span>
+  <span class="fab-label">커피 한 잔 후원</span>
+</a>
+
 </body>
 </html>

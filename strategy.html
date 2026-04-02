@@ -792,6 +792,13 @@
 .server-admin-item.active{border-color:rgba(93,211,255,.7);background:rgba(93,211,255,.12)}
 .server-admin-item small{display:block;color:var(--muted);margin-top:2px}
 .server-admin-empty{color:var(--muted);font-size:13px;padding:8px 4px}
+.server-matchup-info{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);margin-bottom:6px;font-size:0.82rem}
+.matchup-server{font-weight:700;font-size:0.88rem;color:var(--text);letter-spacing:.5px}
+.matchup-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.matchup-tag{padding:2px 7px;border-radius:6px;font-size:0.75rem;font-weight:700;flex-shrink:0}
+.matchup-tag.order{background:rgba(56,189,248,.2);color:#7dd3fc;border:1px solid rgba(56,189,248,.3)}
+.matchup-tag.revenge{background:rgba(248,113,113,.2);color:#fca5a5;border:1px solid rgba(248,113,113,.3)}
+.matchup-server-id{padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.08);font-size:0.78rem}
 
 .scoreboard-wrap{display:grid;gap:10px;margin-bottom:8px}
 .scorebar-card{padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04)}
@@ -1399,6 +1406,7 @@
     <div>
       <h1 class="title">다크워 시즌맵 전략맵</h1>
       <p class="subtitle">다크워 시즌맵 전략맵 운영 페이지</p>
+      <div id="serverMatchupInfo" class="server-matchup-info" style="display:none;"></div>
       <div class="admin-status" id="adminStatusText">상태: 전략맵 (로컬 전용)</div>
       <div class="button-row section-note">
         <button id="changeCurrentAdminPasswordBtn" style="display:none;">비밀번호 변경</button>
@@ -3428,6 +3436,22 @@ function updateServerLabels() {
   const enemyText = enemies.length ? enemies.join(", ") : "-";
   if (currentServerMatchup) currentServerMatchup.textContent = `${currentServer} (${allyText} VS ${enemyText})`;
   if (editorCurrentServer) editorCurrentServer.textContent = currentServer;
+  const matchupEl = document.getElementById("serverMatchupInfo");
+  if (matchupEl) {
+    const hasConfig = currentServer && currentServer !== "#0000";
+    if (!hasConfig) {
+      matchupEl.style.display = "none";
+    } else {
+      const allyTags = allies.length
+        ? allies.map(s => `<span class="matchup-server-id">${escapeHtml(s)}</span>`).join(" ")
+        : '<span style="color:var(--muted)">-</span>';
+      const enemyTags = enemies.length
+        ? enemies.map(s => `<span class="matchup-server-id">${escapeHtml(s)}</span>`).join(" ")
+        : '<span style="color:var(--muted)">-</span>';
+      matchupEl.innerHTML = `<div class="matchup-server">🏰 ${escapeHtml(currentServer)}</div><div class="matchup-row"><span class="matchup-tag order">질서</span>${allyTags}</div><div class="matchup-row"><span class="matchup-tag revenge">복수</span>${enemyTags}</div>`;
+      matchupEl.style.display = "flex";
+    }
+  }
   renderServerList();
 }
 
