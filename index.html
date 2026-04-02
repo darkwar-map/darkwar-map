@@ -1246,6 +1246,23 @@
   }
   .event-countdown .cd-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
   .event-ended-msg { text-align: center; padding: 20px 0; color: var(--muted); font-size: 0.95rem; }
+  .event-ended-msg.hidden { display: none; }
+  .event-countdown.hidden { display: none; }
+  /* 토스트 알림 */
+  #toastContainer { position:fixed; top:20px; right:20px; z-index:99999; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .toast { padding:11px 18px; border-radius:10px; color:#fff; font-size:0.85rem; max-width:320px; pointer-events:auto; box-shadow:0 4px 20px rgba(0,0,0,.35); white-space:pre-line; line-height:1.45; animation:toastSlide .22s ease; }
+  .toast.success { background:#22c55e; }
+  .toast.error   { background:#ef4444; }
+  .toast.warn    { background:#f59e0b; }
+  .toast.info    { background:#6366f1; }
+  @keyframes toastSlide { from { opacity:0; transform:translateX(32px); } to { opacity:1; transform:none; } }
+  /* 커스텀 다이얼로그 */
+  #customDialogBackdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:99998; display:flex; align-items:center; justify-content:center; }
+  .custom-dialog { background:rgba(10,18,34,0.97); border:1px solid rgba(255,255,255,0.14); border-radius:16px; padding:24px; min-width:260px; max-width:min(380px,calc(100vw - 32px)); box-shadow:0 8px 40px rgba(0,0,0,.6); }
+  #customDialogMsg { margin:0 0 16px; white-space:pre-line; line-height:1.55; font-size:0.92rem; color:var(--text); }
+  #customDialogInput { width:100%; box-sizing:border-box; margin-bottom:16px; display:none; appearance:none; border:1.5px solid rgba(255,255,255,0.4); background:rgba(255,255,255,0.1); color:var(--text); border-radius:10px; padding:10px 12px; font:inherit; outline:none; }
+  #customDialogInput:focus { border-color:var(--gate); box-shadow:0 0 0 2px rgba(245,158,11,0.25); }
+  #customDialogOk { background:var(--gate); color:#fff; border-color:transparent; }
   .event-ranking-list { margin-bottom: 12px; }
   .event-rank-header { display: flex; justify-content: space-between; padding: 5px 10px; font-size: 0.75rem; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
   .event-rank-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; }
@@ -1631,20 +1648,34 @@
 <div id="eventModal" class="modal-backdrop hidden">
   <div class="modal-card" style="width:min(480px,calc(100vw - 32px)); max-height:85vh; overflow-y:auto;">
     <h3 style="margin:0 0 12px">🎉 사막 지역 정벌</h3>
+    <div id="eventCountdownArea" class="event-countdown">
+      <div class="cd-digits" id="cdDisplay">00:00:00:00</div>
+      <div class="cd-label">일 &nbsp;·&nbsp; 시 &nbsp;·&nbsp; 분 &nbsp;·&nbsp; 초</div>
+    </div>
+    <div id="eventEndedArea" class="event-ended-msg hidden">이벤트가 종료되었습니다.</div>
     <img class="event-banner-img" src="event.png" alt="이벤트 배너" />
     <div id="eventRankingList" class="event-ranking-list"></div>
     <div class="event-extra-section">
       <div class="event-extra-title">🏜️ 오아시스 · 거점 점령 현황</div>
       <div id="eventExtraList"></div>
     </div>
-    <div id="eventCountdownArea" class="event-countdown">
-      <div class="cd-digits" id="cdDisplay">00:00:00:00</div>
-      <div class="cd-label">일 &nbsp;·&nbsp; 시 &nbsp;·&nbsp; 분 &nbsp;·&nbsp; 초</div>
-    </div>
-    <div id="eventEndedArea" class="event-ended-msg hidden">이벤트가 종료되었습니다.</div>
     <div class="button-row section-note" style="margin-top:14px">
-      <button id="eventAdminMgrBtn" style="display:none">서버관리자 설정</button>
       <button id="closeEventModalBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 컨테이너 -->
+<div id="toastContainer"></div>
+
+<!-- 커스텀 다이얼로그 (confirm / prompt) -->
+<div id="customDialogBackdrop" style="display:none">
+  <div class="custom-dialog">
+    <p id="customDialogMsg"></p>
+    <input id="customDialogInput" type="text" />
+    <div class="button-row" style="justify-content:flex-end; gap:8px; margin:0">
+      <button id="customDialogCancel">취소</button>
+      <button id="customDialogOk">확인</button>
     </div>
   </div>
 </div>
@@ -3018,6 +3049,71 @@ const closeAllianceSideBulkBtn = document.getElementById("closeAllianceSideBulkB
 const toggleEditorPanelBtn = document.getElementById("toggleEditorPanelBtn");
 let editorPanelCollapsed = false;
 
+// ── 커스텀 다이얼로그 유틸 ──────────────────────────────
+function showAlert(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+let _dlResolve = null;
+const _dlBackdrop = document.getElementById('customDialogBackdrop');
+const _dlMsg      = document.getElementById('customDialogMsg');
+const _dlInput    = document.getElementById('customDialogInput');
+const _dlOk       = document.getElementById('customDialogOk');
+const _dlCancel   = document.getElementById('customDialogCancel');
+function _closeDl(val) {
+  _dlBackdrop.style.display = 'none';
+  if (_dlResolve) { _dlResolve(val); _dlResolve = null; }
+}
+_dlOk.addEventListener('click', () => {
+  _closeDl(_dlInput.style.display === 'none' ? true : _dlInput.value);
+});
+_dlCancel.addEventListener('click', () => {
+  _closeDl(_dlInput.style.display === 'none' ? false : null);
+});
+_dlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') _dlOk.click();
+  if (e.key === 'Escape') _dlCancel.click();
+});
+_dlBackdrop.addEventListener('click', e => { if (e.target === _dlBackdrop) _closeDl(_dlInput.style.display === 'none' ? false : null); });
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    _dlResolve = resolve;
+    _dlMsg.textContent = msg;
+    _dlInput.style.display = 'none';
+    _dlCancel.style.display = '';
+    _dlBackdrop.style.display = 'flex';
+    requestAnimationFrame(() => _dlOk.focus());
+  });
+}
+function showPrompt(msg, defaultVal = '') {
+  return new Promise(resolve => {
+    _dlResolve = resolve;
+    _dlMsg.textContent = msg;
+    _dlInput.style.display = 'block';
+    _dlInput.type = 'text';
+    _dlInput.value = defaultVal;
+    _dlCancel.style.display = '';
+    _dlBackdrop.style.display = 'flex';
+    requestAnimationFrame(() => requestAnimationFrame(() => _dlInput.focus()));
+  });
+}
+function showPromptPassword(msg) {
+  return new Promise(resolve => {
+    _dlResolve = resolve;
+    _dlMsg.textContent = msg;
+    _dlInput.style.display = 'block';
+    _dlInput.type = 'password';
+    _dlInput.value = '';
+    _dlCancel.style.display = '';
+    _dlBackdrop.style.display = 'flex';
+    requestAnimationFrame(() => requestAnimationFrame(() => _dlInput.focus()));
+  });
+}
+// ────────────────────────────────────────────────────────
+
 
 
 function nowString() {
@@ -3343,7 +3439,7 @@ function updateEditorPanelCollapseUI() {
 
 function openAllianceSideBulkModal() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 진영 일괄 지정을 할 수 있습니다.");
+    showAlert("슈퍼관리자만 진영 일괄 지정을 할 수 있습니다.", 'error');
     return;
   }
   renderAllianceSideBulkList();
@@ -3386,7 +3482,7 @@ function renderAllianceSideBulkList() {
 
 async function saveAllianceSideBulk() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 진영 일괄 지정을 저장할 수 있습니다.");
+    showAlert("슈퍼관리자만 진영 일괄 지정을 저장할 수 있습니다.", 'error');
     return;
   }
   const next = { ...(allianceSides || {}) };
@@ -3405,11 +3501,10 @@ async function saveAllianceSideBulk() {
     saveAllianceSides();
     closeAllianceSideBulkModal();
     renderAll();
-    alert("기존 연맹 진영 지정을 저장했습니다.");
+    showAlert("기존 연맹 진영 지정을 저장했습니다.", 'success');
   } catch (err) {
     console.error(err);
-    alert(`진영 저장에 실패했습니다.
-${err?.message || "알 수 없는 오류"}`);
+    showAlert(`진영 저장에 실패했습니다.\n${err?.message || "알 수 없는 오류"}`, 'error');
   }
 }
 
@@ -3853,7 +3948,7 @@ function connectServerGroupRef() {
       serverGroupsSyncAvailable = false;
       try { ref.off(); } catch (offErr) {}
       console.warn("serverGroups Firebase listener disabled: permission denied");
-      alert("서버 구성(serverGroups) Firebase 권한이 없어 서버 추가/삭제가 저장되지 않습니다.\nRealtime Database Rules에서 해당 경로 권한을 먼저 설정해 주세요.");
+      showAlert("서버 구성(serverGroups) Firebase 권한이 없어 서버 추가/삭제가 저장되지 않습니다.\nRealtime Database Rules에서 해당 경로 권한을 먼저 설정해 주세요.", 'warn');
       updateServerLabels();
       renderAll();
     }
@@ -3931,7 +4026,7 @@ async function forceAdminLogout(message) {
   serverAdminSession = null;
   setAdminMode(false);
   await signOutAdminAuth();
-  if (message) alert(message);
+  if (message) showAlert(message, 'info');
 }
 
 function attachAdminRoleWatch() {
@@ -4151,11 +4246,11 @@ function renderViewerCount() {
 function switchServer(nextServer) {
   const normalized = normalizeServerId(nextServer);
   if (!normalized) {
-    alert("서버 번호는 #1234 형식만 사용할 수 있습니다.");
+    showAlert("서버 번호는 #1234 형식만 사용할 수 있습니다.", 'error');
     return;
   }
   if (!serverGroupsMap[normalized]) {
-    alert("대표 서버로 저장된 항목만 이동할 수 있습니다.");
+    showAlert("대표 서버로 저장된 항목만 이동할 수 있습니다.", 'error');
     return;
   }
   if (normalized === currentServer) return;
@@ -4260,7 +4355,7 @@ function setAdminMode(next, role = next ? adminRole : "viewer") {
 
 function setZoneOwner(zoneId, owner) {
   if (!canManageCurrentServer()) {
-    alert("현재 서버 관리자 또는 슈퍼관리자만 점령 연맹을 변경할 수 있습니다.");
+    showAlert("현재 서버 관리자 또는 슈퍼관리자만 점령 연맹을 변경할 수 있습니다.", 'error');
     return;
   }
   const zone = zoneMap[zoneId];
@@ -4352,8 +4447,8 @@ function renderEditorLayer() {
 }
 
 function beginEditMode() {
-  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 편집을 할 수 있습니다.");
-  if (!selectedZoneId) return alert("먼저 왼쪽 목록이나 맵에서 영지 하나를 선택해 주세요.");
+  if (!canEditCoordinates()) { showAlert("슈퍼관리자만 좌표 편집을 할 수 있습니다.", 'error'); return; }
+  if (!selectedZoneId) { showAlert("먼저 왼쪽 목록이나 맵에서 영지 하나를 선택해 주세요.", 'info'); return; }
   editMode = true;
   editPoints = pointStringToArray(zoneMap[selectedZoneId].points || "");
   renderEditorLayer();
@@ -4368,7 +4463,7 @@ function stopEditMode() {
 
 function saveCurrentPolygon() {
   if (!selectedZoneId) return;
-  if (editPoints.length < 3) return alert("폴리곤 저장은 최소 3개의 점이 필요합니다.");
+  if (editPoints.length < 3) { showAlert("폴리곤 저장은 최소 3개의 점이 필요합니다.", 'error'); return; }
   const zone = zoneMap[selectedZoneId];
   const points = pointArrayToString(editPoints);
   zone.shape = "polygon";
@@ -4376,7 +4471,7 @@ function saveCurrentPolygon() {
   editOverrides[selectedZoneId] = { points, updated_at: new Date().toISOString() };
   saveEditOverrides();
   renderAll();
-  alert(`${zone.name} 좌표를 저장했습니다.`);
+  showAlert(`${zone.name} 좌표를 저장했습니다.`, 'success');
 }
 
 async function copyCurrentZoneJson() {
@@ -4385,10 +4480,10 @@ async function copyCurrentZoneJson() {
   const payload = { id: zone.id, name: zone.name, type: zone.type, shape: "polygon", points: zone.points || pointArrayToString(editPoints) };
   try {
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    alert("선택 영지 JSON을 복사했습니다.");
+    showAlert("선택 영지 JSON을 복사했습니다.", 'success');
   } catch (err) {
     console.error(err);
-    alert("클립보드 복사에 실패했습니다.");
+    showAlert("클립보드 복사에 실패했습니다.", 'error');
   }
 }
 
@@ -4459,10 +4554,10 @@ function restoreBoardBackupFromFile(file) {
     try {
       const parsed = JSON.parse(String(reader.result || "{}"));
       applyImportedBoard(parsed);
-      alert("JSON 복원을 완료했습니다.");
+      showAlert("JSON 복원을 완료했습니다.", 'success');
     } catch (err) {
       console.error(err);
-      alert(err?.message || "JSON 복원에 실패했습니다.");
+      showAlert(err?.message || "JSON 복원에 실패했습니다.", 'error');
     } finally {
       restoreFile.value = "";
     }
@@ -4497,19 +4592,17 @@ function rescaleAllZones(oldW, oldH) {
   renderAll();
 }
 
-function runRescaleFlow() {
-  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 보정을 실행할 수 있습니다.");
+async function runRescaleFlow() {
+  if (!canEditCoordinates()) { showAlert("슈퍼관리자만 좌표 보정을 실행할 수 있습니다.", 'error'); return; }
   const oldW = Number(rescaleWidthInput.value || 0);
   const oldH = Number(rescaleHeightInput.value || 0);
   if (!Number.isFinite(oldW) || !Number.isFinite(oldH) || oldW <= 0 || oldH <= 0) {
-    return alert("기존 기준 가로/세로를 올바르게 입력해 주세요.");
+    showAlert("기존 기준 가로/세로를 올바르게 입력해 주세요.", 'error'); return;
   }
-  const ok = confirm(`기존 기준 ${oldW}×${oldH} 에서 현재 맵 기준 ${MAP_WIDTH}×${MAP_HEIGHT} 로 전체 좌표를 보정할까요?
-
-보정 전에 JSON 백업을 받아두시는 것을 권장합니다.`);
+  const ok = await showConfirm(`기존 기준 ${oldW}×${oldH} 에서 현재 맵 기준 ${MAP_WIDTH}×${MAP_HEIGHT} 로 전체 좌표를 보정할까요?\n\n보정 전에 JSON 백업을 받아두시는 것을 권장합니다.`);
   if (!ok) return;
   rescaleAllZones(oldW, oldH);
-  alert("전체 좌표 보정을 완료했습니다. 화면 확인 후 그대로 사용하시면 됩니다.");
+  showAlert("전체 좌표 보정을 완료했습니다. 화면 확인 후 그대로 사용하시면 됩니다.", 'success');
 }
 
 function shiftAllZonesY(deltaY) {
@@ -4538,7 +4631,7 @@ function shiftAllZonesY(deltaY) {
 }
 
 function openShiftYModalFlow() {
-  if (!canEditCoordinates()) return alert("슈퍼관리자만 Y 위치 보정을 열 수 있습니다.");
+  if (!canEditCoordinates()) { showAlert("슈퍼관리자만 Y 위치 보정을 열 수 있습니다.", 'error'); return; }
   shiftYInput.value = "0";
   shiftYModal.classList.remove("hidden");
   shiftYInput.focus();
@@ -4549,20 +4642,18 @@ function closeShiftYModalFlow() {
   shiftYModal.classList.add("hidden");
 }
 
-function applyShiftYFlow() {
-  if (!canEditCoordinates()) return alert("슈퍼관리자만 Y 위치 보정을 실행할 수 있습니다.");
+async function applyShiftYFlow() {
+  if (!canEditCoordinates()) { showAlert("슈퍼관리자만 Y 위치 보정을 실행할 수 있습니다.", 'error'); return; }
   const deltaY = Number(shiftYInput.value || 0);
   if (!Number.isFinite(deltaY) || !Number.isInteger(deltaY)) {
-    return alert("Y 이동값은 정수로 입력해 주세요.");
+    showAlert("Y 이동값은 정수로 입력해 주세요.", 'error'); return;
   }
-  if (deltaY === 0) return alert("0이 아닌 값을 입력해 주세요. 예: -120 또는 80");
-  const ok = confirm(`전체 영지 좌표의 Y값을 ${deltaY > 0 ? '+' : ''}${deltaY} 만큼 이동할까요?
-
-음수는 위로, 양수는 아래로 이동합니다.`);
+  if (deltaY === 0) { showAlert("0이 아닌 값을 입력해 주세요. 예: -120 또는 80", 'error'); return; }
+  const ok = await showConfirm(`전체 영지 좌표의 Y값을 ${deltaY > 0 ? '+' : ''}${deltaY} 만큼 이동할까요?\n\n음수는 위로, 양수는 아래로 이동합니다.`);
   if (!ok) return;
   shiftAllZonesY(deltaY);
   closeShiftYModalFlow();
-  alert(`전체 Y 보정을 완료했습니다. (${deltaY > 0 ? '+' : ''}${deltaY})`);
+  showAlert(`전체 Y 보정을 완료했습니다. (${deltaY > 0 ? '+' : ''}${deltaY})`, 'success');
 }
 
 
@@ -4955,7 +5046,7 @@ function closeServerGroupModal() {
 
 function configureServerGroup() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 서버 구성을 변경할 수 있습니다.");
+    showAlert("슈퍼관리자만 서버 구성을 변경할 수 있습니다.", 'error');
     return;
   }
   openServerGroupModal();
@@ -4963,16 +5054,16 @@ function configureServerGroup() {
 
 function saveServerGroupFromModal() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 서버 구성을 저장할 수 있습니다.");
+    showAlert("슈퍼관리자만 서버 구성을 저장할 수 있습니다.", 'error');
     return;
   }
   if (!db || !serverGroupsSyncAvailable) {
-    alert("서버 구성은 로컬에 저장되지 않습니다.\nFirebase serverGroups 권한이 정상일 때만 저장됩니다.");
+    showAlert("서버 구성은 로컬에 저장되지 않습니다.\nFirebase serverGroups 권한이 정상일 때만 저장됩니다.", 'warn');
     return;
   }
   const nextCurrent = normalizeServerId(serverGroupCurrentInput?.value);
   if (!nextCurrent) {
-    alert("대표 서버를 #1234 형식으로 입력해 주세요.");
+    showAlert("대표 서버를 #1234 형식으로 입력해 주세요.", 'error');
     serverGroupCurrentInput?.focus();
     return;
   }
@@ -4995,22 +5086,22 @@ function saveServerGroupFromModal() {
   closeServerGroupModal();
   updateServerLabels();
   renderAll();
-  alert(`서버 구성을 저장했습니다. 이제 ${nextGroup.current} 이 대표 서버로 표시됩니다.`);
+  showAlert(`서버 구성을 저장했습니다. 이제 ${nextGroup.current} 이 대표 서버로 표시됩니다.`, 'success');
 }
 
 async function deleteCurrentServer() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 서버를 삭제할 수 있습니다.");
+    showAlert("슈퍼관리자만 서버를 삭제할 수 있습니다.", 'error');
     return;
   }
   if (!db || !serverGroupsSyncAvailable) {
-    alert("서버 삭제는 로컬에서 처리되지 않습니다.\nFirebase serverGroups 권한이 정상일 때만 삭제됩니다.");
+    showAlert("서버 삭제는 로컬에서 처리되지 않습니다.\nFirebase serverGroups 권한이 정상일 때만 삭제됩니다.", 'warn');
     return;
   }
 
   const targetServer = normalizeServerId(currentServer);
   if (!targetServer) {
-    alert("삭제할 서버 번호를 확인할 수 없습니다.");
+    showAlert("삭제할 서버 번호를 확인할 수 없습니다.", 'error');
     return;
   }
 
@@ -5018,7 +5109,7 @@ async function deleteCurrentServer() {
   const records = await fetchServerAdminRecords(targetServer);
   const adminCount = Array.isArray(records) ? records.length : 0;
 
-  const ok = confirm([
+  const ok = await showConfirm([
     `${targetServer} 서버를 삭제할까요?`,
     "",
     "삭제되는 항목:",
@@ -5077,10 +5168,10 @@ async function deleteCurrentServer() {
     if (db) connectBoardRef();
     updateServerLabels();
     renderAll();
-    alert(`${targetServer} 서버를 삭제했습니다.`);
+    showAlert(`${targetServer} 서버를 삭제했습니다.`, 'success');
   } catch (err) {
     console.error(err);
-    alert(`서버 삭제 중 오류가 발생했습니다.\n${err?.message || "알 수 없는 오류"}`);
+    showAlert(`서버 삭제 중 오류가 발생했습니다.\n${err?.message || "알 수 없는 오류"}`, 'error');
   }
 }
 
@@ -5134,7 +5225,7 @@ function renderServerAdminList(records = []) {
 
 async function openServerAdminModal() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 서버관리자를 설정할 수 있습니다.");
+    showAlert("슈퍼관리자만 서버관리자를 설정할 수 있습니다.", 'error');
     return;
   }
   selectedServerAdminUid = null;
@@ -5203,11 +5294,11 @@ async function findExistingAdminUidByEmail(email) {
 
 async function saveServerAdminForCurrentServer() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 서버관리자를 저장할 수 있습니다.");
+    showAlert("슈퍼관리자만 서버관리자를 저장할 수 있습니다.", 'error');
     return;
   }
   if (!db) {
-    alert("Firebase 연결이 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.");
+    showAlert("Firebase 연결이 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.", 'warn');
     return;
   }
 
@@ -5217,12 +5308,12 @@ async function saveServerAdminForCurrentServer() {
   const password = String(serverAdminPinInput?.value || "").trim();
 
   if (!email) {
-    alert("관리자 이메일을 입력해 주세요.");
+    showAlert("관리자 이메일을 입력해 주세요.", 'error');
     serverAdminIdInput?.focus();
     return;
   }
   if (!/^.+@.+\..+$/.test(email)) {
-    alert("이메일 형식을 확인해 주세요.");
+    showAlert("이메일 형식을 확인해 주세요.", 'error');
     serverAdminIdInput?.focus();
     return;
   }
@@ -5235,7 +5326,7 @@ async function saveServerAdminForCurrentServer() {
     const existingRecords = await fetchServerAdminRecords(currentServer);
     const duplicatedInCurrentServer = existingRecords.some(item => String(item.email || "").trim().toLowerCase() === email);
     if (duplicatedInCurrentServer) {
-      alert("이미 현재 서버에 등록된 이메일입니다. 다른 이메일을 사용하거나 기존 계정을 삭제한 뒤 다시 시도해 주세요.");
+      showAlert("이미 현재 서버에 등록된 이메일입니다. 다른 이메일을 사용하거나 기존 계정을 삭제한 뒤 다시 시도해 주세요.", 'error');
       return;
     }
 
@@ -5255,7 +5346,7 @@ async function saveServerAdminForCurrentServer() {
     } else {
       // DB에 없음 → 비밀번호로 Firebase Auth 직접 확인
       if (password.length < 6) {
-        alert("이메일을 확인할 수 없습니다.\n이미 가입된 계정이라면 비밀번호를 입력하면 자동으로 연결됩니다.\n신규 계정이라면 비밀번호를 6자 이상 입력해 주세요.");
+        showAlert("이메일을 확인할 수 없습니다.\n이미 가입된 계정이라면 비밀번호를 입력하면 자동으로 연결됩니다.\n신규 계정이라면 비밀번호를 6자 이상 입력해 주세요.", 'error');
         return;
       }
       saveServerAdminBtn.textContent = "계정 확인 중...";
@@ -5273,7 +5364,7 @@ async function saveServerAdminForCurrentServer() {
           uid = newUser.uid;
           isExisting = false;
         } else if (signInCode === "auth/wrong-password") {
-          alert("비밀번호가 올바르지 않습니다.\n기존 계정의 비밀번호를 확인해 주세요.");
+          showAlert("비밀번호가 올바르지 않습니다.\n기존 계정의 비밀번호를 확인해 주세요.", 'error');
           return;
         } else {
           throw signInErr;
@@ -5303,20 +5394,20 @@ async function saveServerAdminForCurrentServer() {
 
     selectedServerAdminUid = uid;
     renderServerAdminList(await fetchServerAdminRecords(currentServer));
-    alert(isExisting
+    showAlert(isExisting
       ? `${currentServer} 서버에 기존 계정(${email})을 관리자로 임명했습니다.`
-      : `${currentServer} 서버관리자를 추가했습니다.`);
+      : `${currentServer} 서버관리자를 추가했습니다.`, 'success');
   } catch (err) {
     console.error(err);
     const code = String(err?.code || "");
     if (code === "auth/email-already-in-use") {
-      alert("이미 Firebase Auth에 등록된 이메일입니다.\n비밀번호를 입력하면 기존 계정으로 연결할 수 있습니다.");
+      showAlert("이미 Firebase Auth에 등록된 이메일입니다.\n비밀번호를 입력하면 기존 계정으로 연결할 수 있습니다.", 'error');
     } else if (code === "auth/invalid-email") {
-      alert("이메일 형식이 올바르지 않습니다.");
+      showAlert("이메일 형식이 올바르지 않습니다.", 'error');
     } else if (code === "auth/weak-password") {
-      alert("비밀번호가 너무 약합니다. 6자 이상으로 입력해 주세요.");
+      showAlert("비밀번호가 너무 약합니다. 6자 이상으로 입력해 주세요.", 'error');
     } else {
-      alert(`서버관리자 생성에 실패했습니다.\n${err?.message || "알 수 없는 오류"}`);
+      showAlert(`서버관리자 생성에 실패했습니다.\n${err?.message || "알 수 없는 오류"}`, 'error');
     }
   } finally {
     saveServerAdminBtn.disabled = false;
@@ -5326,18 +5417,18 @@ async function saveServerAdminForCurrentServer() {
 
 async function removeServerAdminForCurrentServer() {
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 서버관리자를 삭제할 수 있습니다.");
+    showAlert("슈퍼관리자만 서버관리자를 삭제할 수 있습니다.", 'error');
     return;
   }
   if (!db) {
-    alert("Firebase 연결이 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.");
+    showAlert("Firebase 연결이 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.", 'warn');
     return;
   }
   if (!selectedServerAdminUid) {
-    alert("삭제할 서버관리자를 목록에서 먼저 선택해 주세요.");
+    showAlert("삭제할 서버관리자를 목록에서 먼저 선택해 주세요.", 'info');
     return;
   }
-  const ok = confirm(`${currentServer} 서버에서 선택한 서버관리자 권한을 삭제할까요?`);
+  const ok = await showConfirm(`${currentServer} 서버에서 선택한 서버관리자 권한을 삭제할까요?`);
   if (!ok) return;
   const serverKey = getCurrentServerAdminKey();
   const removingUid = selectedServerAdminUid;
@@ -5349,15 +5440,15 @@ async function removeServerAdminForCurrentServer() {
   if (!stillAdmin2) await db.ref(`roles/serverAdminUids/${removingUid}`).remove().catch(() => {});
   selectedServerAdminUid = null;
   renderServerAdminList(await fetchServerAdminRecords(currentServer));
-  alert(`${currentServer} 서버관리자 권한을 삭제했습니다.`);
+  showAlert(`${currentServer} 서버관리자 권한을 삭제했습니다.`, 'success');
 }
 
 async function removeServerAdminByUid(uid, records) {
-  if (!isSuperAdmin()) { alert("슈퍼관리자만 서버관리자를 삭제할 수 있습니다."); return; }
+  if (!isSuperAdmin()) { showAlert("슈퍼관리자만 서버관리자를 삭제할 수 있습니다.", 'error'); return; }
   if (!db || !uid) return;
   const target = (records || []).find(r => r.uid === uid);
   const label = target?.name || target?.email || uid;
-  if (!confirm(`${currentServer} 서버에서 [${label}] 서버관리자 권한을 삭제할까요?`)) return;
+  if (!await showConfirm(`${currentServer} 서버에서 [${label}] 서버관리자 권한을 삭제할까요?`)) return;
   const serverKey = getCurrentServerAdminKey();
   await db.ref(`roles/serverAdmins/${serverKey}/${uid}`).remove();
   await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${uid}`).remove();
@@ -5366,32 +5457,32 @@ async function removeServerAdminByUid(uid, records) {
     Object.values(allRolesSnap.val() || {}).some(s => s[uid] === true);
   if (!stillAdmin) await db.ref(`roles/serverAdminUids/${uid}`).remove().catch(() => {});
   renderServerAdminList(await fetchServerAdminRecords(currentServer));
-  alert(`[${label}] 서버관리자 권한을 삭제했습니다.`);
+  showAlert(`[${label}] 서버관리자 권한을 삭제했습니다.`, 'success');
 }
 
 async function changeSuperAdminPassword() {
 
   if (!isSuperAdmin()) {
-    alert("슈퍼관리자만 비밀번호를 변경할 수 있습니다.");
+    showAlert("슈퍼관리자만 비밀번호를 변경할 수 있습니다.", 'error');
     return;
   }
   if (!auth || !auth.currentUser) {
-    alert("로그인 상태를 확인할 수 없습니다. 다시 로그인해 주세요.");
+    showAlert("로그인 상태를 확인할 수 없습니다. 다시 로그인해 주세요.", 'warn');
     return;
   }
-  const currentPassword = String(prompt("현재 비밀번호를 입력해 주세요.") || "").trim();
+  const currentPassword = (await showPromptPassword("현재 비밀번호를 입력해 주세요.") ?? "").trim();
   if (!currentPassword) return;
-  const nextPassword = String(prompt("새 비밀번호를 입력해 주세요.") || "").trim();
+  const nextPassword = (await showPromptPassword("새 비밀번호를 입력해 주세요.") ?? "").trim();
   if (!nextPassword) return;
-  const confirmPassword = String(prompt("새 비밀번호를 한 번 더 입력해 주세요.") || "").trim();
+  const confirmPassword = (await showPromptPassword("새 비밀번호를 한 번 더 입력해 주세요.") ?? "").trim();
   if (nextPassword !== confirmPassword) {
-    alert("새 비밀번호가 서로 다르게 입력되었습니다.");
+    showAlert("새 비밀번호가 서로 다르게 입력되었습니다.", 'error');
     return;
   }
   const credential = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
   await auth.currentUser.reauthenticateWithCredential(credential);
   await auth.currentUser.updatePassword(nextPassword);
-  alert("슈퍼관리자 비밀번호를 변경했습니다.");
+  showAlert("슈퍼관리자 비밀번호를 변경했습니다.", 'success');
 }
 
 async function changeCurrentAdminPassword() {
@@ -5400,62 +5491,62 @@ async function changeCurrentAdminPassword() {
     return;
   }
   if (!isServerAdminForCurrentServer()) {
-    alert("현재 서버의 서버관리자만 비밀번호를 변경할 수 있습니다.");
+    showAlert("현재 서버의 서버관리자만 비밀번호를 변경할 수 있습니다.", 'error');
     return;
   }
   if (!auth || !auth.currentUser) {
-    alert("로그인 상태를 확인할 수 없습니다. 다시 로그인해 주세요.");
+    showAlert("로그인 상태를 확인할 수 없습니다. 다시 로그인해 주세요.", 'warn');
     return;
   }
-  const currentPassword = String(prompt("현재 비밀번호를 입력해 주세요.") || "").trim();
+  const currentPassword = (await showPromptPassword("현재 비밀번호를 입력해 주세요.") ?? "").trim();
   if (!currentPassword) return;
-  const nextPassword = String(prompt("새 비밀번호를 입력해 주세요.") || "").trim();
+  const nextPassword = (await showPromptPassword("새 비밀번호를 입력해 주세요.") ?? "").trim();
   if (!nextPassword) return;
-  const confirmPassword = String(prompt("새 비밀번호를 한 번 더 입력해 주세요.") || "").trim();
+  const confirmPassword = (await showPromptPassword("새 비밀번호를 한 번 더 입력해 주세요.") ?? "").trim();
   if (nextPassword !== confirmPassword) {
-    alert("새 비밀번호가 서로 다르게 입력되었습니다.");
+    showAlert("새 비밀번호가 서로 다르게 입력되었습니다.", 'error');
     return;
   }
   const credential = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
   await auth.currentUser.reauthenticateWithCredential(credential);
   await auth.currentUser.updatePassword(nextPassword);
-  alert("비밀번호를 변경했습니다.");
+  showAlert("비밀번호를 변경했습니다.", 'success');
 }
 
 async function loginAsServerAdmin() {
   if (!auth) {
-    alert("Firebase Auth가 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.");
+    showAlert("Firebase Auth가 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.", 'warn');
     return;
   }
-  const email = String(prompt(`${currentServer} 서버관리자 이메일을 입력해 주세요.`) || "").trim();
+  const email = (await showPrompt(`${currentServer} 서버관리자 이메일을 입력해 주세요.`) ?? "").trim();
   if (!email) return;
-  const password = String(prompt("비밀번호를 입력해 주세요.") || "").trim();
+  const password = (await showPromptPassword("비밀번호를 입력해 주세요.") ?? "").trim();
   if (!password) return;
   const user = await signInWithRole(email, password, 'server');
   serverAdminSession = { serverId: currentServer, email: user.email || email, uid: user.uid, name: user.email || email };
   setAdminMode(true, 'server');
   attachAdminRoleWatch();
-  alert(`${currentServer} 서버관리자로 로그인했습니다.`);
+  showAlert(`${currentServer} 서버관리자로 로그인했습니다.`, 'success');
 }
 
 toggleAllTerritoriesBtn?.addEventListener("click", ()=>{ allTerritoriesVisible = !allTerritoriesVisible; renderAll(); });
 openRescaleBtn.addEventListener("click", ()=>{
-  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 보정을 열 수 있습니다.");
+  if (!canEditCoordinates()) { showAlert("슈퍼관리자만 좌표 보정을 열 수 있습니다.", 'error'); return; }
   editorPanel.classList.remove("editor-hidden");
   rescaleWidthInput.focus();
 });
 backupBtn.addEventListener("click", exportBoardBackup);
-resetOverridesBtn.addEventListener("click", ()=>{
-  if (!canEditCoordinates()) return alert("슈퍼관리자만 좌표 초기화를 실행할 수 있습니다.");
-  const ok = confirm("저장된 로컬 좌표 override를 삭제하고 기준 좌표로 되돌릴까요?\n\n이 작업은 현재 브라우저의 좌표 편집값만 초기화하며, Firebase 상태 데이터는 변경되지 않습니다.");
+resetOverridesBtn.addEventListener("click", async ()=>{
+  if (!canEditCoordinates()) { showAlert("슈퍼관리자만 좌표 초기화를 실행할 수 있습니다.", 'error'); return; }
+  const ok = await showConfirm("저장된 로컬 좌표 override를 삭제하고 기준 좌표로 되돌릴까요?\n\n이 작업은 현재 브라우저의 좌표 편집값만 초기화하며, Firebase 상태 데이터는 변경되지 않습니다.");
   if (!ok) return;
   resetCoordinateOverrides();
-  alert("좌표 override를 초기화했습니다. 이제 기준 좌표로 표시됩니다.");
+  showAlert("좌표 override를 초기화했습니다. 이제 기준 좌표로 표시됩니다.", 'success');
 });
-restoreFile.addEventListener("change", (event) => {
+restoreFile.addEventListener("change", async (event) => {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-  const ok = confirm("선택한 JSON으로 현재 상태/좌표/연맹 정보를 덮어쓸까?");
+  const ok = await showConfirm("선택한 JSON으로 현재 상태/좌표/연맹 정보를 덮어쓸까?");
   if (!ok) {
     restoreFile.value = "";
     return;
@@ -5532,6 +5623,8 @@ function updateEventCountdown() {
     clearInterval(cdTimer);
     return;
   }
+  eventCountdownArea.classList.remove("hidden");
+  eventEndedArea.classList.add("hidden");
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
@@ -5612,13 +5705,12 @@ function connectEventExtraRef() {
   }, () => {});
 }
 
-const eventAdminMgrBtn = document.getElementById("eventAdminMgrBtn");
-
 function openEventModal() {
   renderEventRanking();
   renderEventExtra();
-  if (eventAdminMgrBtn) eventAdminMgrBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
   eventModal.classList.remove("hidden");
+  eventCountdownArea.classList.remove("hidden");
+  eventEndedArea.classList.add("hidden");
   updateEventCountdown();
   cdTimer = setInterval(updateEventCountdown, 1000);
 }
@@ -5629,21 +5721,14 @@ function closeEventModal() {
 eventModalBtn.addEventListener("click", openEventModal);
 closeEventModalBtn.addEventListener("click", closeEventModal);
 eventModal.addEventListener("click", e => { if (e.target === eventModal) closeEventModal(); });
-eventAdminMgrBtn?.addEventListener("click", () => {
-  closeEventModal();
-  openServerAdminModal().catch(err => { console.error(err); alert("서버관리자 설정창을 열지 못했습니다."); });
-});
-
-addAllianceBtn.addEventListener("click", ()=>{
-  if (!canManageCurrentServer()) return alert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있습니다.");
-  const input = prompt("추가할 연맹 이름을 입력해 주세요.");
+addAllianceBtn.addEventListener("click", async ()=>{
+  if (!canManageCurrentServer()) { showAlert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있습니다.", 'error'); return; }
+  const input = await showPrompt("추가할 연맹 이름을 입력해 주세요.");
   if (input === null) return;
   const name = normalizeAllianceName(input);
-  if (!name) return alert("연맹 이름을 입력해 주세요.");
-  if (alliances.includes(name)) return alert("이미 등록된 연맹입니다.");
-  const sideInput = String(prompt(`이 연맹의 진영을 선택해 주세요.
-1 = 질서
-2 = 복수`, "1") || "").trim();
+  if (!name) { showAlert("연맹 이름을 입력해 주세요.", 'error'); return; }
+  if (alliances.includes(name)) { showAlert("이미 등록된 연맹입니다.", 'error'); return; }
+  const sideInput = (await showPrompt(`이 연맹의 진영을 선택해 주세요.\n1 = 질서\n2 = 복수`, "1") ?? "").trim();
   const side = sideInput === "2" ? "revenge" : "order";
   alliances.push(name);
   allianceSides[name] = side;
@@ -5655,7 +5740,7 @@ if (closeServerGroupBtn) closeServerGroupBtn.addEventListener("click", closeServ
 if (saveServerGroupBtn) saveServerGroupBtn.addEventListener("click", saveServerGroupFromModal);
 if (serverGroupModal) serverGroupModal.addEventListener("click", (e)=>{ if (e.target === serverGroupModal) closeServerGroupModal(); });
 if (closeServerAdminBtn) closeServerAdminBtn.addEventListener("click", closeServerAdminModal);
-if (saveServerAdminBtn) saveServerAdminBtn.addEventListener("click", () => { saveServerAdminForCurrentServer().catch(err => { console.error(err); alert(err?.message || "서버관리자 생성에 실패했습니다."); }); });
+if (saveServerAdminBtn) saveServerAdminBtn.addEventListener("click", () => { saveServerAdminForCurrentServer().catch(err => { console.error(err); showAlert(err?.message || "서버관리자 생성에 실패했습니다.", 'error'); }); });
 if (serverAdminModal) serverAdminModal.addEventListener("click", (e)=>{ if (e.target === serverAdminModal) closeServerAdminModal(); });
 if (closeOwnerChangeBtn) closeOwnerChangeBtn.addEventListener("click", closeOwnerChangeModal);
 if (ownerChangeModal) ownerChangeModal.addEventListener("click", (e)=>{ if (e.target === ownerChangeModal) closeOwnerChangeModal(); });
@@ -5667,7 +5752,7 @@ function closeOwnerChangeModal() {
 
 function openOwnerChangeModal(zoneId = selectedZoneId) {
   if (!canManageCurrentServer()) {
-    alert("현재 서버 관리자 또는 슈퍼관리자만 점령을 변경할 수 있습니다.");
+    showAlert("현재 서버 관리자 또는 슈퍼관리자만 점령을 변경할 수 있습니다.", 'error');
     return;
   }
   const zone = zoneMap[zoneId];
@@ -5702,32 +5787,35 @@ async function openAdminModeFlow(){
     await forceAdminLogout();
     return;
   }
-  const mode = String(prompt("관리자 로그인 방식을 선택해 주세요.\n1 = 슈퍼관리자\n2 = 서버관리자", "2") || "").trim();
-  if (!mode) return;
-  if (mode === "1") {
-    if (!auth) return alert("Firebase Auth가 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.");
-    const email = String(prompt("슈퍼관리자 이메일을 입력해 주세요.") || "").trim();
-    if (!email) return;
-    const password = String(prompt("비밀번호를 입력해 주세요.") || "").trim();
-    if (!password) return;
-    const user = await signInWithRole(email, password, 'super');
+  if (!auth) { showAlert("Firebase Auth가 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.", 'warn'); return; }
+  const email = (await showPrompt("관리자 이메일을 입력해 주세요.") ?? "").trim();
+  if (!email) return;
+  const password = (await showPromptPassword("비밀번호를 입력해 주세요.") ?? "").trim();
+  if (!password) return;
+  const cred = await auth.signInWithEmailAndPassword(email, password);
+  const uid = cred.user?.uid;
+  if (await isAuthorizedSuperUser(uid)) {
     serverAdminSession = null;
     setAdminMode(true, "super");
     attachAdminRoleWatch();
-    alert(`슈퍼관리자로 로그인했습니다. (${user.email || email})`);
+    showAlert(`슈퍼관리자로 로그인했습니다. (${cred.user.email || email})`, 'success');
     return;
   }
-  if (mode === "2") {
-    await loginAsServerAdmin();
+  if (await isAuthorizedServerAdmin(uid, currentServer)) {
+    serverAdminSession = { serverId: currentServer, email: cred.user.email || email, uid, name: cred.user.email || email };
+    setAdminMode(true, 'server');
+    attachAdminRoleWatch();
+    showAlert(`${currentServer} 서버관리자로 로그인했습니다.`, 'success');
     return;
   }
-  alert("1 또는 2만 입력해 주세요.");
+  await signOutAdminAuth();
+  throw new Error(`${currentServer} 서버관리자 또는 슈퍼관리자 권한이 없는 계정입니다.`);
 }
 
 window.__openAdminMode = () => {
   openAdminModeFlow().catch((err) => {
     console.error(err);
-    alert("관리자 모드를 열지 못했습니다. 콘솔 오류를 확인해 주세요.");
+    showAlert("관리자 모드를 열지 못했습니다. 콘솔 오류를 확인해 주세요.", 'error');
   });
 };
 if (adminModeBtn) adminModeBtn.addEventListener("click", (event)=>{
@@ -5754,10 +5842,10 @@ toggleEditorPanelBtn?.addEventListener("click", () => {
   updateEditorPanelCollapseUI();
 });
 
-changeSuperPasswordBtn?.addEventListener("click", () => { changeSuperAdminPassword().catch(err => { console.error(err); alert("슈퍼 비밀번호를 변경하지 못했습니다."); }); });
-changeCurrentAdminPasswordBtn?.addEventListener("click", () => { changeCurrentAdminPassword().catch(err => { console.error(err); alert("비밀번호를 변경하지 못했습니다."); }); });
-manageServerAdminBtn?.addEventListener("click", () => { openServerAdminModal().catch(err => { console.error(err); alert("서버관리자 설정창을 열지 못했습니다."); }); });
-deleteServerBtn?.addEventListener("click", () => { deleteCurrentServer().catch(err => { console.error(err); alert("서버를 삭제하지 못했습니다."); }); });
+changeSuperPasswordBtn?.addEventListener("click", () => { changeSuperAdminPassword().catch(err => { console.error(err); showAlert("슈퍼 비밀번호를 변경하지 못했습니다.", 'error'); }); });
+changeCurrentAdminPasswordBtn?.addEventListener("click", () => { changeCurrentAdminPassword().catch(err => { console.error(err); showAlert("비밀번호를 변경하지 못했습니다.", 'error'); }); });
+manageServerAdminBtn?.addEventListener("click", () => { openServerAdminModal().catch(err => { console.error(err); showAlert("서버관리자 설정창을 열지 못했습니다.", 'error'); }); });
+deleteServerBtn?.addEventListener("click", () => { deleteCurrentServer().catch(err => { console.error(err); showAlert("서버를 삭제하지 못했습니다.", 'error'); }); });
 removeServerAdminBtn?.addEventListener("click", removeServerAdminForCurrentServer);
 function handleEditorAddPoint(event) {
   if (!adminMode || !editMode || !selectedZoneId) return;
@@ -5812,7 +5900,7 @@ function closeAdminRequestModal() {
 }
 
 async function submitAdminRequest() {
-  if (!db) { alert("Firebase가 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요."); return; }
+  if (!db) { showAlert("Firebase가 아직 준비되지 않았습니다. 새로고침 후 다시 시도해 주세요.", 'warn'); return; }
   const serverOwn = String(document.getElementById("reqServerOwnInput").value || "").trim();
   const nickname = String(document.getElementById("reqNicknameInput").value || "").trim();
   const email = String(document.getElementById("reqEmailInput").value || "").trim().toLowerCase();
@@ -5824,15 +5912,15 @@ async function submitAdminRequest() {
   const revengeServer2 = String(document.getElementById("reqRevengeServer2Input").value || "").trim().toUpperCase().replace(/^(?!#)/, "#");
 
   const serverFmt = /^#\d{4}$/;
-  if (!serverOwn) { alert("본인 서버를 입력해 주세요."); return; }
-  if (!nickname) { alert("닉네임을 입력해 주세요."); return; }
-  if (!email || !/^.+@.+\..+$/.test(email)) { alert("올바른 이메일 주소를 입력해 주세요."); return; }
-  if (password.length < 6) { alert("비밀번호는 6자 이상으로 입력해 주세요."); return; }
-  if (!serverFmt.test(targetServer)) { alert("추가할 서버를 #1234 형식(4자리)으로 입력해 주세요."); return; }
-  if (!serverFmt.test(orderServer1)) { alert("질서 서버1을 #0123 형식(4자리)으로 입력해 주세요."); return; }
-  if (!serverFmt.test(orderServer2)) { alert("질서 서버2를 #0123 형식(4자리)으로 입력해 주세요."); return; }
-  if (!serverFmt.test(revengeServer1)) { alert("복수 서버1을 #0123 형식(4자리)으로 입력해 주세요."); return; }
-  if (!serverFmt.test(revengeServer2)) { alert("복수 서버2를 #0123 형식(4자리)으로 입력해 주세요."); return; }
+  if (!serverOwn) { showAlert("본인 서버를 입력해 주세요.", 'error'); return; }
+  if (!nickname) { showAlert("닉네임을 입력해 주세요.", 'error'); return; }
+  if (!email || !/^.+@.+\..+$/.test(email)) { showAlert("올바른 이메일 주소를 입력해 주세요.", 'error'); return; }
+  if (password.length < 6) { showAlert("비밀번호는 6자 이상으로 입력해 주세요.", 'error'); return; }
+  if (!serverFmt.test(targetServer)) { showAlert("추가할 서버를 #1234 형식(4자리)으로 입력해 주세요.", 'error'); return; }
+  if (!serverFmt.test(orderServer1)) { showAlert("질서 서버1을 #0123 형식(4자리)으로 입력해 주세요.", 'error'); return; }
+  if (!serverFmt.test(orderServer2)) { showAlert("질서 서버2를 #0123 형식(4자리)으로 입력해 주세요.", 'error'); return; }
+  if (!serverFmt.test(revengeServer1)) { showAlert("복수 서버1을 #0123 형식(4자리)으로 입력해 주세요.", 'error'); return; }
+  if (!serverFmt.test(revengeServer2)) { showAlert("복수 서버2를 #0123 형식(4자리)으로 입력해 주세요.", 'error'); return; }
 
   // 이메일 중복 체크 (대기중 또는 승인된 신청에 동일 이메일 존재 여부)
   try {
@@ -5844,7 +5932,7 @@ async function submitAdminRequest() {
         if (String(d.email || "").toLowerCase() === email && d.status !== "rejected") duplicate = true;
       });
       if (duplicate) {
-        alert("이미 동일한 이메일로 신청된 내역이 있습니다.\n슈퍼관리자가 처리할 때까지 기다려 주세요.");
+        showAlert("이미 동일한 이메일로 신청된 내역이 있습니다.\n슈퍼관리자가 처리할 때까지 기다려 주세요.", 'error');
         return;
       }
     }
@@ -5871,11 +5959,11 @@ async function submitAdminRequest() {
       requestedAt: Date.now()
     });
     localStorage.setItem("darkwar-req-email", email);
-    alert("서버 관리자 신청이 완료되었습니다. 슈퍼관리자가 검토 후 처리해 드립니다!");
+    showAlert("서버 관리자 신청이 완료되었습니다. 슈퍼관리자가 검토 후 처리해 드립니다!", 'success');
     closeAdminRequestModal();
   } catch (err) {
     console.error(err);
-    alert("신청에 실패했습니다. 다시 시도해 주세요.\n" + (err?.message || ""));
+    showAlert("신청에 실패했습니다. 다시 시도해 주세요.\n" + (err?.message || ""), 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = "신청하기";
@@ -5967,11 +6055,11 @@ function renderAdminRequestList(items) {
         <button class="req-delete-btn">삭제</button>
       </div>` : `<div class="req-actions"><button class="req-delete-btn">삭제</button></div>`}
     `;
-    div.querySelector(".req-approve-btn")?.addEventListener("click", () => updateAdminRequestStatus(item.id, "approved").catch(err => { console.error(err); alert(err?.message || "처리에 실패했습니다."); }));
-    div.querySelector(".req-reject-btn")?.addEventListener("click", () => {
-      const reason = prompt("거절 사유를 입력하세요.\n(신청자가 다음 접속 시 확인합니다)", "");
+    div.querySelector(".req-approve-btn")?.addEventListener("click", () => updateAdminRequestStatus(item.id, "approved").catch(err => { console.error(err); showAlert(err?.message || "처리에 실패했습니다.", 'error'); }));
+    div.querySelector(".req-reject-btn")?.addEventListener("click", async () => {
+      const reason = await showPrompt("거절 사유를 입력하세요.\n(신청자가 다음 접속 시 확인합니다)", "");
       if (reason === null) return;
-      updateAdminRequestStatus(item.id, "rejected", reason.trim()).catch(err => { console.error(err); alert(err?.message || "처리에 실패했습니다."); });
+      updateAdminRequestStatus(item.id, "rejected", reason.trim()).catch(err => { console.error(err); showAlert(err?.message || "처리에 실패했습니다.", 'error'); });
     });
     div.querySelector(".req-delete-btn")?.addEventListener("click", () => deleteAdminRequest(item.id));
     listEl.appendChild(div);
@@ -5988,13 +6076,13 @@ async function updateAdminRequestStatus(id, status, rejectReason = "") {
   if (status === "approved") {
     try {
       const snap = await db.ref(`${FIREBASE_ADMIN_REQUESTS_PATH}/${id}`).get();
-      if (!snap.exists()) { alert("신청 데이터를 찾을 수 없습니다."); return; }
+      if (!snap.exists()) { showAlert("신청 데이터를 찾을 수 없습니다.", 'error'); return; }
       const item = snap.val();
       const email = String(item.email || "").trim();
       const password = String(item.passwordHint || "").trim();
       const targetServer = String(item.targetServer || "").trim();
       if (!email || !password || !targetServer) {
-        alert("신청 데이터에 이메일, 비밀번호 또는 추가할 서버 정보가 없습니다. 상태만 변경합니다.");
+        showAlert("신청 데이터에 이메일, 비밀번호 또는 추가할 서버 정보가 없습니다. 상태만 변경합니다.", 'warn');
       } else {
         try {
           const user = await createServerAdminAuthAccount(email, password);
@@ -6019,20 +6107,20 @@ async function updateAdminRequestStatus(id, status, rejectReason = "") {
           if (!existingGroupSnap.exists()) {
             await db.ref(`${FIREBASE_SERVER_GROUPS_PATH}/${serverKey}`).set({ current: serverKey, allies, enemies });
           }
-          alert(`✅ ${targetServer} 서버관리자 계정을 생성하고 권한을 등록했습니다!\n닉네임: ${item.nickname}\n이메일: ${email}\n서버 구성(질서/복수)도 함께 저장되었습니다.`);
+          showAlert(`✅ ${targetServer} 서버관리자 계정을 생성하고 권한을 등록했습니다!\n닉네임: ${item.nickname}\n이메일: ${email}\n서버 구성(질서/복수)도 함께 저장되었습니다.`, 'success');
         } catch (authErr) {
           console.error(authErr);
           const code = String(authErr?.code || "");
           if (code === "auth/email-already-in-use") {
-            alert("이미 Firebase Auth에 등록된 이메일입니다. 수동으로 계정 연결이 필요합니다.");
+            showAlert("이미 Firebase Auth에 등록된 이메일입니다. 수동으로 계정 연결이 필요합니다.", 'error');
           } else {
-            alert("계정 생성에 실패했습니다. 수동으로 처리해 주세요.\n" + (authErr?.message || ""));
+            showAlert("계정 생성에 실패했습니다. 수동으로 처리해 주세요.\n" + (authErr?.message || ""), 'error');
           }
         }
       }
     } catch (err) {
       console.error(err);
-      alert("승인 처리 중 오류가 발생했습니다.\n" + (err?.message || ""));
+      showAlert("승인 처리 중 오류가 발생했습니다.\n" + (err?.message || ""), 'error');
       return;
     }
   }
@@ -6044,18 +6132,18 @@ async function updateAdminRequestStatus(id, status, rejectReason = "") {
     }
     await db.ref(`${FIREBASE_ADMIN_REQUESTS_PATH}/${id}`).update(update);
   } catch (err) {
-    alert("상태 변경에 실패했습니다.\n" + (err?.message || ""));
+    showAlert("상태 변경에 실패했습니다.\n" + (err?.message || ""), 'error');
   }
 }
 
 async function deleteAdminRequest(id) {
   if (!db || !isSuperAdmin()) return;
-  if (!confirm("이 신청 내역을 삭제할까요?")) return;
+  if (!await showConfirm("이 신청 내역을 삭제할까요?")) return;
   try {
     await db.ref(`${FIREBASE_ADMIN_REQUESTS_PATH}/${id}`).remove();
     await loadAndRenderAdminRequests();
   } catch (err) {
-    alert("삭제에 실패했습니다.\n" + (err?.message || ""));
+    showAlert("삭제에 실패했습니다.\n" + (err?.message || ""), 'error');
   }
 }
 
@@ -6076,7 +6164,7 @@ function closeAdminRequestListModal() {
 document.getElementById("requestServerAdminBtn")?.addEventListener("click", openAdminRequestModal);
 document.getElementById("closeAdminRequestModalBtn")?.addEventListener("click", closeAdminRequestModal);
 document.getElementById("adminRequestModal")?.addEventListener("click", e => { if (e.target === e.currentTarget) closeAdminRequestModal(); });
-document.getElementById("submitAdminRequestBtn")?.addEventListener("click", () => { submitAdminRequest().catch(err => { console.error(err); alert(err?.message || "신청에 실패했습니다."); }); });
+document.getElementById("submitAdminRequestBtn")?.addEventListener("click", () => { submitAdminRequest().catch(err => { console.error(err); showAlert(err?.message || "신청에 실패했습니다.", 'error'); }); });
 document.getElementById("adminReqPanelBtn")?.addEventListener("click", openAdminRequestListModal);
 document.getElementById("closeAdminRequestListBtn")?.addEventListener("click", closeAdminRequestListModal);
 document.getElementById("refreshAdminRequestListBtn")?.addEventListener("click", loadAndRenderAdminRequests);
