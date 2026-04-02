@@ -1263,6 +1263,9 @@
   #customDialogInput { width:100%; box-sizing:border-box; margin-bottom:16px; display:none; appearance:none; border:1.5px solid rgba(255,255,255,0.4); background:rgba(255,255,255,0.1); color:var(--text); border-radius:10px; padding:10px 12px; font:inherit; outline:none; }
   #customDialogInput:focus { border-color:var(--gate); box-shadow:0 0 0 2px rgba(245,158,11,0.25); }
   #customDialogOk { background:var(--gate); color:#fff; border-color:transparent; }
+  /* 공지사항 */
+  #noticeContentInput { width:100%; box-sizing:border-box; background:rgba(255,255,255,0.06); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font:inherit; resize:vertical; }
+  #noticeContentInput:focus { border-color:var(--gate); outline:none; }
   .event-ranking-list { margin-bottom: 12px; }
   .event-rank-header { display: flex; justify-content: space-between; padding: 5px 10px; font-size: 0.75rem; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
   .event-rank-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; }
@@ -1627,6 +1630,7 @@
       <button id="resetOverridesBtn">좌표 초기화</button>
       <button id="openShiftYBtn">Y 위치 보정</button>
       <button id="changeSuperPasswordBtn">슈퍼 비밀번호 변경</button>
+      <button id="manageNoticeBtn">📢 공지사항 관리</button>
     </div>
     <div class="mini-form">
       <label>기존 좌표 기준 가로
@@ -1661,6 +1665,37 @@
     </div>
     <div class="button-row section-note" style="margin-top:14px">
       <button id="closeEventModalBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 뷰어 모달 -->
+<div id="noticeModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="max-width:min(480px,calc(100vw - 32px)); max-height:80vh; overflow-y:auto;">
+    <h3 id="noticeTitle" style="margin:0 0 12px"></h3>
+    <pre id="noticeContent" style="white-space:pre-wrap; margin:0 0 20px; font:inherit; line-height:1.6; color:var(--muted)"></pre>
+    <div class="button-row section-note" style="margin:0">
+      <button id="closeNoticeBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 편집 모달 (슈퍼관리자) -->
+<div id="noticeEditorModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="max-width:min(480px,calc(100vw - 32px));">
+    <h3 style="margin:0 0 12px">📢 공지사항 관리</h3>
+    <div class="modal-form-row">
+      <label>제목</label>
+      <input id="noticeTitleInput" type="text" placeholder="예: 패치노트 v1.2" />
+    </div>
+    <div class="modal-form-row">
+      <label>내용</label>
+      <textarea id="noticeContentInput" rows="8" placeholder="공지 내용을 입력하세요."></textarea>
+    </div>
+    <div class="button-row section-note" style="margin-top:8px">
+      <button id="deleteNoticeBtn">공지 삭제</button>
+      <button id="saveNoticeBtn">저장</button>
+      <button id="closeNoticeEditorBtn">닫기</button>
     </div>
   </div>
 </div>
@@ -2908,6 +2943,7 @@ const FIREBASE_SUPERADMIN_PATH = `${FIREBASE_META_PATH}/superAdmin`;
 const FIREBASE_SERVER_GROUPS_PATH = `${FIREBASE_META_PATH}/serverGroups`;
 const FIREBASE_ADMIN_REQUESTS_PATH = `${FIREBASE_META_PATH}/adminRequests`;
 const FIREBASE_PRESENCE_PATH = `${FIREBASE_META_PATH}/presence`;
+const FIREBASE_NOTICE_PATH = `${FIREBASE_META_PATH}/notice`;
 const OWNER_COLORS = [
   "#ef4444", "#3b82f6", "#f59e0b", "#22c55e", "#a855f7",
   "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16"
@@ -4144,6 +4180,7 @@ function initFirebase() {
     connectServerGroupRef();
     connectBoardRef();
     connectEventExtraRef();
+    connectNoticeRef();
     initPresence();
   } catch (err) {
     console.error(err);
@@ -5696,6 +5733,68 @@ function renderEventExtra() {
   }
 }
 
+// ── 공지사항 ──────────────────────────────────────────────
+function connectNoticeRef() {
+  if (!db) return;
+  db.ref(FIREBASE_NOTICE_PATH).on('value', snap => {
+    const notice = snap.val();
+    showNoticeIfUnseen(notice);
+    const editorModal = document.getElementById('noticeEditorModal');
+    if (editorModal && !editorModal.classList.contains('hidden')) {
+      populateNoticeEditor(notice);
+    }
+  });
+}
+
+function showNoticeIfUnseen(notice) {
+  if (!notice || !notice.id) return;
+  if (localStorage.getItem(`darkwar-seen-notice-${notice.id}`) === '1') return;
+  document.getElementById('noticeTitle').textContent = notice.title || '공지사항';
+  document.getElementById('noticeContent').textContent = notice.content || '';
+  document.getElementById('noticeModal').classList.remove('hidden');
+}
+
+function closeNoticeModal() {
+  document.getElementById('noticeModal').classList.add('hidden');
+  db?.ref(FIREBASE_NOTICE_PATH).get().then(snap => {
+    const n = snap.val();
+    if (n?.id) localStorage.setItem(`darkwar-seen-notice-${n.id}`, '1');
+  });
+}
+
+async function openNoticeEditorModal() {
+  if (!isSuperAdmin()) return;
+  const snap = db ? await db.ref(FIREBASE_NOTICE_PATH).get() : null;
+  populateNoticeEditor(snap?.val() || null);
+  document.getElementById('noticeEditorModal').classList.remove('hidden');
+}
+
+function populateNoticeEditor(notice) {
+  document.getElementById('noticeTitleInput').value = notice?.title || '';
+  document.getElementById('noticeContentInput').value = notice?.content || '';
+}
+
+async function saveNotice() {
+  if (!db || !isSuperAdmin()) return;
+  const title = document.getElementById('noticeTitleInput').value.trim();
+  const content = document.getElementById('noticeContentInput').value.trim();
+  if (!title) { showAlert('제목을 입력해 주세요.', 'error'); return; }
+  const id = Date.now();
+  await db.ref(FIREBASE_NOTICE_PATH).set({ id, title, content, createdAt: id });
+  showAlert('공지사항을 저장했습니다.', 'success');
+}
+
+async function deleteNotice() {
+  if (!db || !isSuperAdmin()) return;
+  const ok = await showConfirm('공지사항을 삭제할까요?\n삭제하면 모든 방문자에게 더 이상 표시되지 않습니다.');
+  if (!ok) return;
+  await db.ref(FIREBASE_NOTICE_PATH).remove();
+  showAlert('공지사항을 삭제했습니다.', 'success');
+  document.getElementById('noticeTitleInput').value = '';
+  document.getElementById('noticeContentInput').value = '';
+}
+// ──────────────────────────────────────────────────────────
+
 function connectEventExtraRef() {
   if (!db) return;
   db.ref(FIREBASE_EVENT_EXTRA_PATH).on('value', snap => {
@@ -5721,6 +5820,13 @@ function closeEventModal() {
 eventModalBtn.addEventListener("click", openEventModal);
 closeEventModalBtn.addEventListener("click", closeEventModal);
 eventModal.addEventListener("click", e => { if (e.target === eventModal) closeEventModal(); });
+document.getElementById('closeNoticeBtn').addEventListener('click', closeNoticeModal);
+document.getElementById('noticeModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeNoticeModal(); });
+document.getElementById('manageNoticeBtn')?.addEventListener('click', () => { openNoticeEditorModal().catch(console.error); });
+document.getElementById('saveNoticeBtn').addEventListener('click', () => { saveNotice().catch(err => { showAlert(err?.message || '저장에 실패했습니다.', 'error'); }); });
+document.getElementById('deleteNoticeBtn').addEventListener('click', () => { deleteNotice().catch(err => { showAlert(err?.message || '삭제에 실패했습니다.', 'error'); }); });
+document.getElementById('closeNoticeEditorBtn').addEventListener('click', () => { document.getElementById('noticeEditorModal').classList.add('hidden'); });
+document.getElementById('noticeEditorModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden'); });
 addAllianceBtn.addEventListener("click", async ()=>{
   if (!canManageCurrentServer()) { showAlert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있습니다.", 'error'); return; }
   const input = await showPrompt("추가할 연맹 이름을 입력해 주세요.");
