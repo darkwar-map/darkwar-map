@@ -1258,6 +1258,18 @@
   .event-rank-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .event-rank-score { font-weight: 700; color: var(--gate); font-variant-numeric: tabular-nums; flex-shrink: 0; }
   .event-rank-empty { text-align: center; padding: 16px 0; color: var(--muted); font-size: 0.85rem; }
+  .event-bonus-label { color: #86efac; font-size: 0.75rem; font-weight: 400; }
+  .event-extra-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); }
+  .event-extra-title { font-size: 0.82rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+  .ee-scroll { overflow-x: hidden; }
+  .ee-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; table-layout: fixed; }
+  .ee-th { padding: 4px 2px; text-align: center; color: var(--muted); font-size: 0.68rem; border-bottom: 1px solid rgba(255,255,255,.12); word-break: keep-all; line-height: 1.3; }
+  .ee-td { padding: 4px 2px; text-align: center; border-bottom: 1px solid rgba(255,255,255,.06); vertical-align: middle; }
+  .ee-alliance { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ee-bonus { color: #86efac; font-weight: 700; }
+  .ee-total { font-weight: 700; color: var(--muted); font-size: 0.72rem; }
+  .ee-over { color: #fca5a5 !important; }
+  .ee-num { width: 100%; max-width: 40px; padding: 2px 2px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 5px; color: var(--text); font-size: 0.75rem; text-align: center; box-sizing: border-box; }
 
 </style>
 </head>
@@ -1621,12 +1633,17 @@
     <h3 style="margin:0 0 12px">🎉 사막 지역 정벌</h3>
     <img class="event-banner-img" src="event.png" alt="이벤트 배너" />
     <div id="eventRankingList" class="event-ranking-list"></div>
+    <div class="event-extra-section">
+      <div class="event-extra-title">🏜️ 오아시스 · 거점 점령 현황</div>
+      <div id="eventExtraList"></div>
+    </div>
     <div id="eventCountdownArea" class="event-countdown">
       <div class="cd-digits" id="cdDisplay">00:00:00:00</div>
       <div class="cd-label">일 &nbsp;·&nbsp; 시 &nbsp;·&nbsp; 분 &nbsp;·&nbsp; 초</div>
     </div>
     <div id="eventEndedArea" class="event-ended-msg hidden">이벤트가 종료되었습니다.</div>
     <div class="button-row section-note" style="margin-top:14px">
+      <button id="eventAdminMgrBtn" style="display:none">서버관리자 설정</button>
       <button id="closeEventModalBtn">닫기</button>
     </div>
   </div>
@@ -3957,6 +3974,7 @@ async function restoreAdminModeFromAuth(user) {
       setAdminMode(true, "super");
       saveAdminSessionLocal();
       attachAdminRoleWatch();
+      migrateServerAdminUids().catch(() => {});
       return;
     }
 
@@ -4030,6 +4048,7 @@ function initFirebase() {
     });
     connectServerGroupRef();
     connectBoardRef();
+    connectEventExtraRef();
     initPresence();
   } catch (err) {
     console.error(err);
@@ -4181,6 +4200,21 @@ async function isAuthorizedServerAdmin(uid, serverId = currentServer) {
   const key = String(serverId || '').replace('#', '');
   const snap = await db.ref(`roles/serverAdmins/${key}/${uid}`).get();
   return snap.exists() && snap.val() === true;
+}
+
+// 기존 서버관리자 전체를 roles/serverAdminUids에 한 번에 채우는 마이그레이션 (슈퍼관리자 로그인 시 자동 실행)
+async function migrateServerAdminUids() {
+  if (!db) return;
+  const snap = await db.ref(FIREBASE_SERVER_ADMINS_PATH).get().catch(() => null);
+  if (!snap || !snap.exists()) return;
+  const allServers = snap.val() || {};
+  const uids = new Set();
+  Object.values(allServers).forEach(admins => {
+    Object.keys(admins || {}).forEach(uid => uids.add(uid));
+  });
+  for (const uid of uids) {
+    await db.ref(`roles/serverAdminUids/${uid}`).set(true).catch(() => {});
+  }
 }
 
 async function signInWithRole(email, password, role) {
@@ -5007,8 +5041,13 @@ async function deleteCurrentServer() {
 
     const rolesSnap = await db.ref(`roles/serverAdmins/${targetKey}`).get().catch(() => null);
     const roleUids = rolesSnap && rolesSnap.exists() ? Object.keys(rolesSnap.val() || {}) : [];
+    await db.ref(`roles/serverAdmins/${targetKey}`).remove().catch(() => {});
+    // 다른 서버에 남아있지 않은 uid는 평면 룩업도 삭제
+    const remainingRolesSnap = await db.ref('roles/serverAdmins').get().catch(() => null);
     for (const uid of roleUids) {
-      await db.ref(`roles/serverAdmins/${targetKey}/${uid}`).remove().catch(() => {});
+      const stillAdmin = remainingRolesSnap?.exists() &&
+        Object.values(remainingRolesSnap.val() || {}).some(s => s[uid] === true);
+      if (!stillAdmin) await db.ref(`roles/serverAdminUids/${uid}`).remove().catch(() => {});
     }
 
     const metaSnap = await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${targetKey}`).get().catch(() => null);
@@ -5254,6 +5293,7 @@ async function saveServerAdminForCurrentServer() {
     };
 
     await db.ref(`roles/serverAdmins/${serverKey}/${uid}`).set(true);
+    await db.ref(`roles/serverAdminUids/${uid}`).set(true);
     await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${uid}`).set(payload);
 
     if (serverAdminNameInput) serverAdminNameInput.value = "";
@@ -5300,8 +5340,13 @@ async function removeServerAdminForCurrentServer() {
   const ok = confirm(`${currentServer} 서버에서 선택한 서버관리자 권한을 삭제할까요?`);
   if (!ok) return;
   const serverKey = getCurrentServerAdminKey();
-  await db.ref(`roles/serverAdmins/${serverKey}/${selectedServerAdminUid}`).remove();
-  await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${selectedServerAdminUid}`).remove();
+  const removingUid = selectedServerAdminUid;
+  await db.ref(`roles/serverAdmins/${serverKey}/${removingUid}`).remove();
+  await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${removingUid}`).remove();
+  const allRolesSnap2 = await db.ref('roles/serverAdmins').get().catch(() => null);
+  const stillAdmin2 = allRolesSnap2?.exists() &&
+    Object.values(allRolesSnap2.val() || {}).some(s => s[removingUid] === true);
+  if (!stillAdmin2) await db.ref(`roles/serverAdminUids/${removingUid}`).remove().catch(() => {});
   selectedServerAdminUid = null;
   renderServerAdminList(await fetchServerAdminRecords(currentServer));
   alert(`${currentServer} 서버관리자 권한을 삭제했습니다.`);
@@ -5316,6 +5361,10 @@ async function removeServerAdminByUid(uid, records) {
   const serverKey = getCurrentServerAdminKey();
   await db.ref(`roles/serverAdmins/${serverKey}/${uid}`).remove();
   await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${uid}`).remove();
+  const allRolesSnap = await db.ref('roles/serverAdmins').get().catch(() => null);
+  const stillAdmin = allRolesSnap?.exists() &&
+    Object.values(allRolesSnap.val() || {}).some(s => s[uid] === true);
+  if (!stillAdmin) await db.ref(`roles/serverAdminUids/${uid}`).remove().catch(() => {});
   renderServerAdminList(await fetchServerAdminRecords(currentServer));
   alert(`[${label}] 서버관리자 권한을 삭제했습니다.`);
 }
@@ -5425,7 +5474,29 @@ document.getElementById("helpModal").addEventListener("click", (e) => {
 
 // 이벤트 팝업
 const EVENT_END = new Date('2026-04-16T02:00:00Z'); // 4월 16일 11:00 KST
+const FIREBASE_EVENT_EXTRA_PATH = `${FIREBASE_META_PATH}/eventExtra`;
+const EVENT_EXTRA_SLOTS = [
+  { key: 'oasisLv1',   label: '오아시스 Lv1', max: 64,  score: 10, icon: '💧' }, // 16영지 × 4개
+  { key: 'oasisLv2',   label: '오아시스 Lv2', max: 64,  score: 20, icon: '💧' }, // 16영지 × 4개
+  { key: 'oasisLv3',   label: '오아시스 Lv3', max: 60,  score: 30, icon: '💧' }, // 20영지 × 3개
+  { key: 'stronghold', label: '거점',          max: 36,  score: 60, icon: '🏛️' }, // 3레벨 20 + 4레벨 12 + 5레벨 4
+];
+let eventExtraData = {};
 let cdTimer = null;
+
+function toEventKey(name) {
+  return String(name).replace(/[.$#/[\]\s]/g, '_');
+}
+
+function getEventExtraScore(allianceName) {
+  const eKey = toEventKey(allianceName);
+  let bonus = 0;
+  EVENT_EXTRA_SLOTS.forEach(slot => {
+    const counts = eventExtraData[slot.key] || {};
+    bonus += (Number(counts[eKey]) || 0) * slot.score;
+  });
+  return bonus;
+}
 
 function renderEventRanking() {
   const container = document.getElementById("eventRankingList");
@@ -5434,10 +5505,11 @@ function renderEventRanking() {
     return;
   }
   const ranked = alliances.map(name => {
-    const score = Object.values(zoneMap)
+    const zoneScore = Object.values(zoneMap)
       .filter(zone => state[zone.id]?.owner === name)
       .reduce((sum, zone) => sum + getZonePower(zone), 0);
-    return { name, score, color: ownerColor(name) || '#94a3b8' };
+    const bonus = getEventExtraScore(name);
+    return { name, score: zoneScore + bonus, bonus, color: ownerColor(name) || '#94a3b8' };
   }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ko'));
 
   const numClass = i => i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
@@ -5448,7 +5520,7 @@ function renderEventRanking() {
         <span class="event-rank-num ${numClass(i)}">${i + 1}</span>
         <span class="event-rank-dot" style="background:${item.color}"></span>
         <span class="event-rank-name">${item.name}</span>
-        <span class="event-rank-score">${item.score.toLocaleString()}</span>
+        <span class="event-rank-score">${item.score.toLocaleString()}${item.bonus > 0 ? `<small class="event-bonus-label"> (+${item.bonus.toLocaleString()})</small>` : ''}</span>
       </div>`).join('');
 }
 
@@ -5466,8 +5538,86 @@ function updateEventCountdown() {
   const s = Math.floor((diff % 60000) / 1000);
   cdDisplay.textContent = `${String(d).padStart(2,'0')}:${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
+function renderEventExtra() {
+  const container = document.getElementById('eventExtraList');
+  if (!container) return;
+  if (!alliances || !alliances.length) {
+    container.innerHTML = '<div class="event-rank-empty">등록된 연맹이 없습니다.</div>';
+    return;
+  }
+  const canEdit = isSuperAdmin() || adminRole === "server";
+
+  const headerCols = EVENT_EXTRA_SLOTS.map(s => {
+    const shortLabel = s.label.replace('오아시스 ', '');
+    return `<th class="ee-th">${s.icon}<br>${shortLabel}<br><span style="font-size:0.63rem;opacity:.75">${s.score}pt</span></th>`;
+  }).join('');
+
+  const rows = alliances.map(name => {
+    const color = ownerColor(name) || '#94a3b8';
+    const eKey = toEventKey(name);
+    const bonusTotal = getEventExtraScore(name);
+    const cells = EVENT_EXTRA_SLOTS.map(slot => {
+      const val = Number((eventExtraData[slot.key] || {})[eKey]) || 0;
+      if (canEdit) {
+        return `<td class="ee-td"><input type="number" class="ee-num" min="0" max="${slot.max}" value="${val}" data-key="${escapeHtml(slot.key)}" data-ekey="${escapeHtml(eKey)}" /></td>`;
+      }
+      return `<td class="ee-td">${val > 0 ? val : '<span class="muted">-</span>'}</td>`;
+    }).join('');
+    return `<tr>
+      <td class="ee-td ee-alliance"><span class="event-rank-dot" style="background:${color}"></span>${escapeHtml(name)}</td>
+      ${cells}
+      <td class="ee-td ee-bonus">${bonusTotal > 0 ? '+' + bonusTotal.toLocaleString() : '-'}</td>
+    </tr>`;
+  }).join('');
+
+  const totalCells = EVENT_EXTRA_SLOTS.map(slot => {
+    const counts = eventExtraData[slot.key] || {};
+    const total = alliances.reduce((sum, n) => sum + (Number(counts[toEventKey(n)]) || 0), 0);
+    const over = total > slot.max;
+    return `<td class="ee-td ee-total${over ? ' ee-over' : ''}">${total}<span class="muted">/${slot.max}</span></td>`;
+  }).join('');
+
+  const slotCount = EVENT_EXTRA_SLOTS.length;
+  const colgroup = `<colgroup><col style="width:28%">${EVENT_EXTRA_SLOTS.map(() => `<col style="width:${Math.floor(52/slotCount)}%">`).join('')}<col style="width:20%"></colgroup>`;
+  container.innerHTML = `<div class="ee-scroll"><table class="ee-table">
+    ${colgroup}
+    <thead><tr><th class="ee-th">연맹</th>${headerCols}<th class="ee-th">보너스</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td class="ee-td ee-total">합계</td>${totalCells}<td class="ee-td"></td></tr></tfoot>
+  </table></div>`;
+
+  if (canEdit) {
+    container.querySelectorAll('.ee-num').forEach(input => {
+      input.addEventListener('change', () => {
+        const key = input.dataset.key;
+        const eKey = input.dataset.ekey;
+        const val = Math.max(0, parseInt(input.value) || 0);
+        input.value = val;
+        if (!eventExtraData[key]) eventExtraData[key] = {};
+        eventExtraData[key][eKey] = val;
+        if (db) db.ref(`${FIREBASE_EVENT_EXTRA_PATH}/${key}/${eKey}`).set(val).catch(console.error);
+        renderEventRanking();
+        renderEventExtra();
+      });
+    });
+  }
+}
+
+function connectEventExtraRef() {
+  if (!db) return;
+  db.ref(FIREBASE_EVENT_EXTRA_PATH).on('value', snap => {
+    eventExtraData = snap.val() || {};
+    renderEventExtra();
+    renderEventRanking();
+  }, () => {});
+}
+
+const eventAdminMgrBtn = document.getElementById("eventAdminMgrBtn");
+
 function openEventModal() {
   renderEventRanking();
+  renderEventExtra();
+  if (eventAdminMgrBtn) eventAdminMgrBtn.style.display = isSuperAdmin() ? "inline-flex" : "none";
   eventModal.classList.remove("hidden");
   updateEventCountdown();
   cdTimer = setInterval(updateEventCountdown, 1000);
@@ -5479,6 +5629,10 @@ function closeEventModal() {
 eventModalBtn.addEventListener("click", openEventModal);
 closeEventModalBtn.addEventListener("click", closeEventModal);
 eventModal.addEventListener("click", e => { if (e.target === eventModal) closeEventModal(); });
+eventAdminMgrBtn?.addEventListener("click", () => {
+  closeEventModal();
+  openServerAdminModal().catch(err => { console.error(err); alert("서버관리자 설정창을 열지 못했습니다."); });
+});
 
 addAllianceBtn.addEventListener("click", ()=>{
   if (!canManageCurrentServer()) return alert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있습니다.");
@@ -5855,6 +6009,7 @@ async function updateAdminRequestStatus(id, status, rejectReason = "") {
             updatedBy: currentAuthUser?.uid || "super"
           };
           await db.ref(`roles/serverAdmins/${serverKey}/${user.uid}`).set(true);
+          await db.ref(`roles/serverAdminUids/${user.uid}`).set(true);
           await db.ref(`${FIREBASE_SERVER_ADMINS_PATH}/${serverKey}/${user.uid}`).set(payload);
           // 서버 구성 자동 저장 (이미 등록된 서버이면 덮어쓰지 않음)
           const normalizeKey = (s) => { const m = String(s||"").trim().match(/^#?(\d{4})$/); return m ? m[1] : null; };
