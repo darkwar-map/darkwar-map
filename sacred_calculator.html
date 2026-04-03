@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>다크워 시즌맵 성수 계산기</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: rgba(10, 18, 34, 0.88);
+      --panel-2: rgba(255,255,255,0.04);
+      --line: rgba(255,255,255,0.12);
+      --text: #e5eefc;
+      --muted: #9db0cb;
+      --shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(circle at top, #15284d 0%, rgba(21,40,77,0.25) 22%, transparent 45%),
+        linear-gradient(180deg, #050a14, #08111f 28%, #0b1220);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 100vh;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .sidebar {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 페이지 탭 네비게이션 */
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .nav-tab {
+      flex: 1;
+      text-align: center;
+      text-decoration: none;
+      padding: 9px 0;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--muted);
+      background: var(--panel-2);
+      border: 1px solid transparent;
+      transition: background .15s, color .15s, border-color .15s;
+      cursor: pointer;
+    }
+    .nav-tab:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+    .nav-tab.active {
+      background: rgba(96,165,250,0.18);
+      border-color: rgba(96,165,250,0.45);
+      color: #93c5fd;
+    }
+
+    /* 페이지 헤더 */
+    .page-header { }
+    .page-header h1 {
+      margin: 0 0 6px;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .page-header .subtitle {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .formula-badge {
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .formula-badge strong {
+      color: var(--text);
+      font-weight: 700;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* 계산기 그리드 */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 640px) {
+      .calc-grid { grid-template-columns: 1fr; }
+      .nav-tab { font-size: 0.8rem; padding: 8px 4px; }
+    }
+
+    /* 섹션 */
+    .section {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel-2);
+    }
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* 입력 필드 */
+    .field {
+      display: block;
+      margin-bottom: 14px;
+    }
+    .field:last-child { margin-bottom: 0; }
+    .field-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input[type="text"]:focus {
+      border-color: rgba(96,165,250,0.6);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.12);
+    }
+    .help-text {
+      margin-top: 5px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* 결과 박스 */
+    .result-stack { display: grid; gap: 10px; }
+    .result-box {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+    }
+    .result-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .result-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1.25;
+      word-break: break-word;
+      color: var(--text);
+    }
+    .result-box.highlight {
+      background: rgba(96,165,250,0.12);
+      border-color: rgba(96,165,250,0.35);
+    }
+    .result-box.highlight .result-label {
+      color: rgba(147,197,253,0.8);
+    }
+    .result-box.highlight .result-value {
+      color: #93c5fd;
+      font-size: 1.8rem;
+    }
+    .result-subvalue {
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* 수식 표시 */
+    .expr-box {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel-2);
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+    .expr-box strong {
+      color: var(--text);
+      font-weight: 700;
+      display: block;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel sidebar">
+
+      <!-- 네비게이션 -->
+      <div class="nav-tabs">
+        <a href="index.html" class="nav-tab">⚔️ 전황판</a>
+        <a href="strategy.html" class="nav-tab">🗺️ 전략맵</a>
+        <a href="sacred_calculator.html" class="nav-tab active">💧 성수 계산기</a>
+      </div>
+
+      <!-- 페이지 헤더 -->
+      <div class="page-header">
+        <h1>성수 생산량 계산기</h1>
+        <div class="formula-badge">
+          계산식:
+          <strong>(필요한 성수 − 현재 성수) ÷ (성수 제단 생산량 + 오아시스 생산량)</strong>
+        </div>
+      </div>
+
+      <!-- 입력 + 결과 그리드 -->
+      <div class="calc-grid">
+
+        <!-- 입력 섹션 -->
+        <section class="section">
+          <h2>입력</h2>
+
+          <label class="field">
+            <span class="field-label">필요한 성수</span>
+            <input id="required" type="text" inputmode="numeric" placeholder="예: 170000" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">현재 성수</span>
+            <input id="current" type="text" inputmode="numeric" placeholder="예: 13438" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">성수 제단 생산량</span>
+            <input id="temple" type="text" inputmode="numeric" placeholder="예: 57000" />
+            <div class="help-text">예시: 57k/h → 57000</div>
+          </label>
+
+          <label class="field">
+            <span class="field-label">오아시스 생산량</span>
+            <input id="oasis" type="text" inputmode="numeric" placeholder="예: 1080" />
+            <div class="help-text">예시: 1080/h → 1080</div>
+          </label>
+        </section>
+
+        <!-- 결과 섹션 -->
+        <section class="section">
+          <h2>계산 결과</h2>
+
+          <div class="result-stack">
+            <div class="result-box">
+              <div class="result-label">부족한 성수</div>
+              <div class="result-value" id="remainingNeeded">-</div>
+            </div>
+
+            <div class="result-box">
+              <div class="result-label">총 생산량 / 시간</div>
+              <div class="result-value" id="totalProduction">-</div>
+            </div>
+
+            <div class="result-box highlight">
+              <div class="result-label">완료까지 남은 시간</div>
+              <div class="result-value" id="duration">-</div>
+              <div class="result-subvalue" id="finishTime">예상 완료 시각: -</div>
+              <div class="result-subvalue" id="rawHours">소수 시간값: -</div>
+            </div>
+          </div>
+
+          <div class="expr-box">
+            현재 예시 기준 계산:
+            <strong id="expression">-</strong>
+          </div>
+        </section>
+
+      </div><!-- /.calc-grid -->
+
+    </div><!-- /.panel.sidebar -->
+  </div><!-- /.app -->
+
+  <script>
+    function parseNumber(value) {
+      if (value === "") return 0;
+      const cleaned = String(value).replace(/[\,\s]/g, "");
+      const num = Number(cleaned);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function formatNumber(num) {
+      if (!Number.isFinite(num)) return "-";
+      return new Intl.NumberFormat("ko-KR").format(Math.round(num));
+    }
+
+    function formatDuration(hours) {
+      if (!Number.isFinite(hours) || hours < 0) return "-";
+      if (hours === 0) return "0시간 0분";
+
+      const totalMinutes = Math.ceil(hours * 60);
+      const days = Math.floor(totalMinutes / (24 * 60));
+      const remainAfterDays = totalMinutes % (24 * 60);
+      const hrs = Math.floor(remainAfterDays / 60);
+      const mins = remainAfterDays % 60;
+
+      const parts = [];
+      if (days > 0) parts.push(days + "일");
+      parts.push(hrs + "시간");
+      parts.push(mins + "분");
+      return parts.join(" ");
+    }
+
+    function formatFinishTime(hours) {
+      if (!Number.isFinite(hours)) return "-";
+
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+      const kstNow = new Date(utc + (9 * 60 * 60 * 1000));
+      const finish = new Date(kstNow.getTime() + hours * 60 * 60 * 1000);
+
+      const year = finish.getFullYear();
+      const month = String(finish.getMonth() + 1).padStart(2, "0");
+      const date = String(finish.getDate()).padStart(2, "0");
+      const hour = String(finish.getHours()).padStart(2, "0");
+      const minute = String(finish.getMinutes()).padStart(2, "0");
+
+      return `${year}-${month}-${date} ${hour}:${minute}`;
+    }
+
+    const requiredEl = document.getElementById("required");
+    const currentEl = document.getElementById("current");
+    const templeEl = document.getElementById("temple");
+    const oasisEl = document.getElementById("oasis");
+
+    const STORAGE_KEY = "darkwar_sacred_calculator_v2_inputs";
+    const defaultValues = {
+      required: requiredEl.value,
+      current: currentEl.value,
+      temple: templeEl.value,
+      oasis: oasisEl.value,
+    };
+
+    function saveInputs() {
+      const data = {
+        required: requiredEl.value,
+        current: currentEl.value,
+        temple: templeEl.value,
+        oasis: oasisEl.value,
+      };
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (error) {
+        console.warn("입력값 저장 실패", error);
+      }
+    }
+
+    function loadInputs() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+
+        const data = JSON.parse(saved);
+        requiredEl.value = data.required ?? defaultValues.required;
+        currentEl.value = data.current ?? defaultValues.current;
+        templeEl.value = data.temple ?? defaultValues.temple;
+        oasisEl.value = data.oasis ?? defaultValues.oasis;
+      } catch (error) {
+        console.warn("저장된 입력값 불러오기 실패", error);
+      }
+    }
+
+    function update() {
+      const requiredNum = parseNumber(requiredEl.value);
+      const currentNum = parseNumber(currentEl.value);
+      const templeNum = parseNumber(templeEl.value);
+      const oasisNum = parseNumber(oasisEl.value);
+
+      const totalProduction = templeNum + oasisNum;
+      const remainingNeeded = Math.max(requiredNum - currentNum, 0);
+      const rawHours = totalProduction > 0 ? remainingNeeded / totalProduction : NaN;
+
+      document.getElementById("remainingNeeded").textContent = formatNumber(remainingNeeded);
+      document.getElementById("totalProduction").textContent = `${formatNumber(totalProduction)}/h`;
+      document.getElementById("duration").textContent = formatDuration(rawHours);
+      document.getElementById("finishTime").textContent = `예상 완료 시각: ${formatFinishTime(rawHours)}`;
+      document.getElementById("rawHours").textContent = `소수 시간값: ${Number.isFinite(rawHours) ? rawHours.toFixed(2) : "-"}시간`;
+      document.getElementById("expression").textContent =
+        `(${formatNumber(requiredNum)} - ${formatNumber(currentNum)}) / (${formatNumber(templeNum)} + ${formatNumber(oasisNum)})`;
+
+      saveInputs();
+    }
+
+    [requiredEl, currentEl, templeEl, oasisEl].forEach((el) => {
+      el.addEventListener("input", update);
+      el.addEventListener("change", update);
+    });
+
+    loadInputs();
+    update();
+  </script>
+</body>
+</html>
