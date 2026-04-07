@@ -847,6 +847,25 @@
 .server-admin-del-btn{flex-shrink:0;padding:4px 10px;font-size:0.8rem;border-radius:7px;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);cursor:pointer}
 .server-admin-del-btn:hover{background:rgba(239,68,68,.3)}
 .server-admin-empty{color:var(--muted);font-size:13px;padding:8px 4px}
+.am-add-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.am-add-row input{flex:1;min-width:120px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);font-size:.9rem}
+.am-add-row select{padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:rgba(10,18,34,.95);color:var(--text);font-size:.9rem}
+.am-list{max-height:400px !important}
+.am-item{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap}
+.am-item:last-child{border-bottom:none}
+.am-item-name{display:flex;align-items:center;gap:6px;flex:1;min-width:80px;font-weight:600;color:var(--text)}
+.am-side-btns{display:flex;gap:4px}
+.am-side-btn{padding:3px 8px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:.78rem;cursor:pointer;transition:all .15s}
+.am-side-btn.active-order{background:rgba(96,165,250,.25);border-color:#60a5fa;color:#93c5fd}
+.am-side-btn.active-revenge{background:rgba(239,68,68,.25);border-color:#ef4444;color:#fca5a5}
+.am-side-btn.active-none{background:rgba(148,163,184,.15);border-color:#94a3b8;color:#cbd5e1}
+.am-edit-btn,.am-delete-btn{padding:3px 8px;border-radius:4px;border:1px solid var(--line);font-size:.78rem;cursor:pointer;transition:all .15s}
+.am-edit-btn{background:transparent;color:var(--muted)}
+.am-edit-btn:hover{border-color:#60a5fa;color:#60a5fa}
+.am-delete-btn{background:transparent;color:var(--muted)}
+.am-delete-btn:hover{border-color:#ef4444;color:#ef4444}
+.am-rename-row{display:flex;gap:6px;align-items:center;width:100%;margin-top:6px}
+.am-rename-row input{flex:1;padding:4px 8px;border-radius:5px;border:1px solid #60a5fa;background:rgba(255,255,255,.07);color:var(--text);font-size:.88rem}
 .server-matchup-info{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);margin-bottom:6px;font-size:0.82rem}
 .matchup-server{font-weight:700;font-size:0.88rem;color:var(--text);letter-spacing:.5px}
 .matchup-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -1307,7 +1326,7 @@
       <div class="admin-status" id="adminStatusText">권한: 보기 모드</div>
       <div class="button-row section-note">
         <button id="changeCurrentAdminPasswordBtn" style="display:none;">비밀번호 변경</button>
-        <button id="addAllianceBtn">연맹 추가</button>
+        <button id="addAllianceBtn">연맹 관리</button>
         <button id="helpBtn">사용법</button>
         <button id="requestServerAdminBtn">서버 관리자 신청</button>
         <button id="eventModalBtn" class="event-open-btn">🎉 사막 지역 정벌</button>
@@ -1462,6 +1481,26 @@
   </div>
 </div>
 
+
+<!-- 연맹 관리 모달 -->
+<div id="allianceManageModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="width:min(640px, calc(100vw - 32px)); max-height:90vh; display:flex; flex-direction:column;">
+    <h3>연맹 관리</h3>
+    <div class="am-add-row">
+      <input id="amNewAllianceName" type="text" placeholder="새 연맹 이름" maxlength="30">
+      <select id="amNewAllianceSide">
+        <option value="order">질서</option>
+        <option value="revenge">복수</option>
+        <option value="">미지정</option>
+      </select>
+      <button id="amAddBtn">추가</button>
+    </div>
+    <div id="allianceManageList" class="server-admin-list am-list"></div>
+    <div class="button-row section-note" style="margin-top:12px;">
+      <button id="closeAllianceManageBtn">닫기</button>
+    </div>
+  </div>
+</div>
 
 <!-- 서버 관리자 신청 모달 -->
 <div id="adminRequestModal" class="modal-backdrop hidden">
@@ -3083,6 +3122,12 @@ const allianceSideBulkList = document.getElementById("allianceSideBulkList");
 const bulkAllianceSideBtn = document.getElementById("bulkAllianceSideBtn");
 const saveAllianceSideBulkBtn = document.getElementById("saveAllianceSideBulkBtn");
 const closeAllianceSideBulkBtn = document.getElementById("closeAllianceSideBulkBtn");
+const allianceManageModal = document.getElementById("allianceManageModal");
+const allianceManageList = document.getElementById("allianceManageList");
+const amNewAllianceName = document.getElementById("amNewAllianceName");
+const amNewAllianceSide = document.getElementById("amNewAllianceSide");
+const amAddBtn = document.getElementById("amAddBtn");
+const closeAllianceManageBtn = document.getElementById("closeAllianceManageBtn");
 const toggleEditorPanelBtn = document.getElementById("toggleEditorPanelBtn");
 let editorPanelCollapsed = false;
 
@@ -3545,6 +3590,116 @@ async function saveAllianceSideBulk() {
   }
 }
 
+
+async function deleteAlliance(name) {
+  const confirmed = await showConfirm(`"${name}" 연맹을 삭제하시겠습니까?\n이 연맹이 점령한 모든 영지가 미점령으로 초기화됩니다.`);
+  if (!confirmed) return;
+  Object.keys(state).forEach(zoneId => {
+    if (state[zoneId]?.owner === name) state[zoneId] = { ...state[zoneId], owner: "" };
+  });
+  const idx = alliances.indexOf(name);
+  if (idx !== -1) alliances.splice(idx, 1);
+  delete allianceSides[name];
+  saveState();
+  saveAlliances();
+  saveAllianceSides();
+  renderAll();
+  renderAllianceManageList();
+  showAlert(`"${name}" 연맹이 삭제되었습니다.`, 'success');
+}
+
+async function renameAlliance(oldName, newName) {
+  const normalized = normalizeAllianceName(newName);
+  if (!normalized) { showAlert("연맹 이름을 입력해 주세요.", 'error'); return false; }
+  if (normalized === oldName) return false;
+  if (alliances.includes(normalized)) { showAlert("이미 등록된 연맹 이름입니다.", 'error'); return false; }
+  const idx = alliances.indexOf(oldName);
+  if (idx !== -1) alliances[idx] = normalized;
+  if (allianceSides[oldName] !== undefined) {
+    allianceSides[normalized] = allianceSides[oldName];
+    delete allianceSides[oldName];
+  }
+  Object.keys(state).forEach(zoneId => {
+    if (state[zoneId]?.owner === oldName) state[zoneId] = { ...state[zoneId], owner: normalized };
+  });
+  saveState();
+  saveAlliances();
+  saveAllianceSides();
+  renderAll();
+  renderAllianceManageList();
+  return true;
+}
+
+function renderAllianceManageList() {
+  if (!allianceManageList) return;
+  if (!alliances.length) {
+    allianceManageList.innerHTML = '<div class="server-admin-empty">등록된 연맹이 없습니다.</div>';
+    return;
+  }
+  const canManage = canManageCurrentServer();
+  allianceManageList.innerHTML = alliances.map((name, idx) => {
+    const side = normalizeAllianceSide(allianceSides?.[name] || "");
+    const dot = dotHtml(name);
+    const sideLabel = getAllianceSideLabel(name);
+    return `<div class="am-item" data-alliance-idx="${idx}">
+      <span class="am-item-name">${dot}${escapeHtml(name)}</span>
+      ${canManage ? `
+      <div class="am-side-btns">
+        <button class="am-side-btn ${side === 'order' ? 'active-order' : ''}" data-am-side="order" data-am-name="${escapeHtml(name)}">질서</button>
+        <button class="am-side-btn ${side === 'revenge' ? 'active-revenge' : ''}" data-am-side="revenge" data-am-name="${escapeHtml(name)}">복수</button>
+        <button class="am-side-btn ${!side ? 'active-none' : ''}" data-am-side="" data-am-name="${escapeHtml(name)}">미지정</button>
+      </div>
+      <button class="am-edit-btn" data-am-rename="${escapeHtml(name)}">이름수정</button>
+      <button class="am-delete-btn" data-am-delete="${escapeHtml(name)}">삭제</button>
+      ` : `<span class="badge" style="margin-left:auto;">${escapeHtml(sideLabel || '미지정')}</span>`}
+    </div>`;
+  }).join('');
+
+  allianceManageList.onclick = async (e) => {
+    const sideBtn = e.target.closest('[data-am-side]');
+    const renameBtn = e.target.closest('[data-am-rename]');
+    const deleteBtn = e.target.closest('[data-am-delete]');
+    if (sideBtn && !e.target.closest('.am-rename-row')) {
+      const name = sideBtn.dataset.amName;
+      const side = sideBtn.dataset.amSide;
+      if (side) allianceSides[name] = side;
+      else delete allianceSides[name];
+      saveAllianceSides();
+      renderAll();
+      renderAllianceManageList();
+    } else if (renameBtn) {
+      const name = renameBtn.dataset.amRename;
+      const item = renameBtn.closest('.am-item');
+      item.querySelector('.am-rename-row')?.remove();
+      const row = document.createElement('div');
+      row.className = 'am-rename-row';
+      row.innerHTML = `<input type="text" value="${escapeHtml(name)}" maxlength="30"><button class="am-edit-btn">확인</button><button class="am-edit-btn">취소</button>`;
+      item.appendChild(row);
+      const [inp, confirmBtn, cancelBtn] = [row.querySelector('input'), ...row.querySelectorAll('button')];
+      inp.focus();
+      inp.select();
+      confirmBtn.onclick = async () => { await renameAlliance(name, inp.value); };
+      cancelBtn.onclick = () => row.remove();
+      inp.onkeydown = (ev) => { if (ev.key === 'Enter') confirmBtn.click(); else if (ev.key === 'Escape') row.remove(); };
+    } else if (deleteBtn) {
+      await deleteAlliance(deleteBtn.dataset.amDelete);
+    }
+  };
+}
+
+function openAllianceManageModal() {
+  if (!canManageCurrentServer()) {
+    showAlert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 관리할 수 있습니다.", 'error');
+    return;
+  }
+  renderAllianceManageList();
+  if (amNewAllianceName) amNewAllianceName.value = "";
+  allianceManageModal?.classList.remove("hidden");
+}
+
+function closeAllianceManageModal() {
+  allianceManageModal?.classList.add("hidden");
+}
 
 function saveAllianceSides() {
   localStorage.setItem(getScopedStorageKey(ALLIANCE_SIDE_STORAGE_KEY), JSON.stringify(allianceSides));
@@ -5828,21 +5983,26 @@ document.getElementById('saveNoticeBtn').addEventListener('click', () => { saveN
 document.getElementById('deleteNoticeBtn').addEventListener('click', () => { deleteNotice().catch(err => { showAlert(err?.message || '삭제에 실패했습니다.', 'error'); }); });
 document.getElementById('closeNoticeEditorBtn').addEventListener('click', () => { document.getElementById('noticeEditorModal').classList.add('hidden'); });
 document.getElementById('noticeEditorModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden'); });
-addAllianceBtn.addEventListener("click", async ()=>{
-  if (!canManageCurrentServer()) { showAlert("현재 서버 관리자 또는 슈퍼관리자만 연맹을 추가할 수 있습니다.", 'error'); return; }
-  const input = await showPrompt("추가할 연맹 이름을 입력해 주세요.");
-  if (input === null) return;
-  const name = normalizeAllianceName(input);
+addAllianceBtn.addEventListener("click", () => {
+  openAllianceManageModal();
+});
+amAddBtn?.addEventListener("click", () => {
+  const name = normalizeAllianceName(amNewAllianceName?.value || "");
   if (!name) { showAlert("연맹 이름을 입력해 주세요.", 'error'); return; }
   if (alliances.includes(name)) { showAlert("이미 등록된 연맹입니다.", 'error'); return; }
-  const sideInput = (await showPrompt(`이 연맹의 진영을 선택해 주세요.\n1 = 질서\n2 = 복수`, "1") ?? "").trim();
-  const side = sideInput === "2" ? "revenge" : "order";
+  const side = amNewAllianceSide?.value || "";
   alliances.push(name);
-  allianceSides[name] = side;
-  saveAllianceSides();
+  if (side) allianceSides[name] = side;
   saveAlliances();
+  saveAllianceSides();
   renderAll();
+  if (amNewAllianceName) amNewAllianceName.value = "";
+  renderAllianceManageList();
+  showAlert(`"${name}" 연맹이 추가되었습니다.`, 'success');
 });
+amNewAllianceName?.addEventListener("keydown", (e) => { if (e.key === "Enter") amAddBtn?.click(); });
+closeAllianceManageBtn?.addEventListener("click", closeAllianceManageModal);
+allianceManageModal?.addEventListener("click", (e) => { if (e.target === allianceManageModal) closeAllianceManageModal(); });
 if (closeServerGroupBtn) closeServerGroupBtn.addEventListener("click", closeServerGroupModal);
 if (saveServerGroupBtn) saveServerGroupBtn.addEventListener("click", saveServerGroupFromModal);
 if (serverGroupModal) serverGroupModal.addEventListener("click", (e)=>{ if (e.target === serverGroupModal) closeServerGroupModal(); });
